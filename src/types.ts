@@ -21,7 +21,18 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS'
 /**
  * SFTP methods supported for SFTP logging
  */
-export type SftpMethod = 'CONNECT' | 'LIST' | 'GET' | 'PUT' | 'DELETE';
+export type SftpMethod = 'CONNECT' | 'LIST' | 'GET' | 'PUT' | 'DELETE' | 'MKDIR' | 'RMDIR' | 'RENAME';
+
+/**
+ * Interface for logging engine implementations
+ */
+export interface LoggingEngine {
+  log(level: LogLevel, message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
+  error(message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
+  warn(message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
+  info(message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
+  debug(message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
+}
 
 /**
  * Base interface for all log entries
@@ -132,12 +143,12 @@ export type LogEntry =
 export interface LoggerOptions {
   /** Default log level */
   defaultLevel?: LogLevel;
+  /** Custom logging engine implementation */
+  engine?: LoggingEngine;
   /** Winston logger instance (if you want to provide your own) */
   winstonLogger?: WinstonLogger;
   /** Additional transport configurations */
   transports?: Array<WinstonLogger['transports'][number]>;
-  /** Format for the logs (defaults to JSON) */
-  format?: 'json' | 'simple' | 'pretty';
   /** Optional service name to include in logs */
   serviceName?: string;
   /** Optional environment name to include in logs */

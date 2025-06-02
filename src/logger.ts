@@ -1,7 +1,7 @@
 /**
- * Core logger implementation built on Winston
+ * Core logger implementation
  */
-import { createLogger, format, transports, Logger as WinstonLogger } from 'winston';
+import { Logger as WinstonLogger } from 'winston';
 import {
   LogLevel,
   LoggerOptions,
@@ -15,20 +15,22 @@ import {
   HttpRequestLogEntry,
   HttpResponseLogEntry,
   SftpOperationLogEntry,
+  LoggingEngine,
 } from './types';
 import { generateUuid, generateTimestamp, getTraceId } from './utils/id-generator';
+import { WinstonAdapter } from './adapters/winston-adapter';
 
 /**
- * StructuredLogger provides typed, structured logging with Winston
+ * UnnboundLogger provides typed, structured logging
  */
-export class StructuredLogger {
-  private logger: WinstonLogger;
+export class UnnboundLogger {
+  private engine: LoggingEngine;
   private defaultLevel: LogLevel;
   private serviceName?: string;
   private environment?: string;
 
   /**
-   * Creates a new StructuredLogger instance
+   * Creates a new UnnboundLogger instance
    * @param options - Configuration options for the logger
    */
   constructor(options: LoggerOptions = {}) {
@@ -36,37 +38,23 @@ export class StructuredLogger {
     this.serviceName = options.serviceName;
     this.environment = options.environment;
 
-    if (options.winstonLogger) {
-      this.logger = options.winstonLogger;
-    } else {
-      const logFormat = this.getLogFormat(options.format || 'json');
-
-      this.logger = createLogger({
+    if (options.engine) {
+      this.engine = options.engine;
+    } else if (options.winstonLogger) {
+      // Create a Winston adapter from the provided Winston logger
+      this.engine = new WinstonAdapter({
         level: this.defaultLevel,
-        format: logFormat,
-        defaultMeta: {
-          ...(this.serviceName && { service: this.serviceName }),
-          ...(this.environment && { environment: this.environment }),
-        },
-        transports: options.transports || [new transports.Console()],
+        serviceName: this.serviceName,
+        environment: this.environment,
       });
-    }
-  }
-
-  /**
-   * Creates the log format based on the specified format type
-   * @param formatType - The format type ('json', 'simple', or 'pretty')
-   * @returns Winston format
-   */
-  private getLogFormat(formatType: 'json' | 'simple' | 'pretty'): ReturnType<typeof format.combine> {
-    switch (formatType) {
-      case 'simple':
-        return format.combine(format.timestamp(), format.simple());
-      case 'pretty':
-        return format.combine(format.timestamp(), format.prettyPrint());
-      case 'json':
-      default:
-        return format.combine(format.timestamp(), format.json());
+    } else {
+      // Create a default Winston adapter
+      this.engine = new WinstonAdapter({
+        level: this.defaultLevel,
+        transports: options.transports,
+        serviceName: this.serviceName,
+        environment: this.environment,
+      });
     }
   }
 
@@ -102,7 +90,7 @@ export class StructuredLogger {
       duration: null,
     };
 
-    this.logger.log(level, '', { ...logEntry });
+    this.engine.log(level, '', { ...logEntry });
   }
 
   /**
@@ -189,7 +177,7 @@ export class StructuredLogger {
       duration: null,
     };
 
-    this.logger.log(options.level || this.defaultLevel, '', { ...logEntry });
+    this.engine.log(options.level || this.defaultLevel, '', { ...logEntry });
     return requestId;
   }
 
@@ -242,7 +230,7 @@ export class StructuredLogger {
       fileSize: null,
     };
 
-    this.logger.log(level, '', { ...logEntry });
+    this.engine.log(level, '', { ...logEntry });
   }
 
   /**
@@ -281,6 +269,6 @@ export class StructuredLogger {
       duration: options.duration,
     };
 
-    this.logger.log(options.level || this.defaultLevel, '', { ...logEntry });
+    this.engine.log(options.level || this.defaultLevel, '', { ...logEntry });
   }
 }

@@ -4,7 +4,7 @@
  * A structured logging library built on top of Winston with TypeScript support.
  * Provides consistent, well-typed logging across different operational contexts.
  */
-import { StructuredLogger } from './logger';
+import { UnnboundLogger } from './logger';
 import {
   LogLevel,
   LogType,
@@ -27,7 +27,7 @@ import { generateUuid, generateTimestamp, getTraceId, clearTraceId } from './uti
 // Export everything needed for the library
 export {
   // Main logger class
-  StructuredLogger,
+  UnnboundLogger,
 
   // Types
   LogLevel,
@@ -54,7 +54,7 @@ export {
 };
 
 // Create a default logger instance
-const defaultLogger = new StructuredLogger();
+const defaultLogger = new UnnboundLogger();
 export { defaultLogger };
 
 // Export default logger functions for convenience
@@ -67,5 +67,5 @@ export const httpRequest = defaultLogger.httpRequest.bind(defaultLogger);
 export const httpResponse = defaultLogger.httpResponse.bind(defaultLogger);
 export const sftpOperation = defaultLogger.sftpOperation.bind(defaultLogger);
 
-// Default export is the StructuredLogger class
-export default StructuredLogger;
+// Default export is the UnnboundLogger class
+export default UnnboundLogger;

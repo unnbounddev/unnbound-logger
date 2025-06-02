@@ -1,4 +1,6 @@
-import { StructuredLogger } from '../src';
+import { UnnboundLogger } from '../src';
+import winston from 'winston';
+import * as idGen from '../src/utils/id-generator';
 
 // Mock uuid to return predictable values
 jest.mock('uuid', () => ({
@@ -16,12 +18,12 @@ MockDate.UTC = jest.fn((a, b, c, d, e, f, g) =>
 MockDate.prototype.toISOString = jest.fn(() => '2025-01-01T12:00:00.000Z');
 global.Date = MockDate;
 
-describe('StructuredLogger', () => {
-  let logger: StructuredLogger;
+describe('UnnboundLogger', () => {
+  let logger: UnnboundLogger;
   let logSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    logger = new StructuredLogger();
+    logger = new UnnboundLogger();
     // @ts-expect-error - accessing private property for testing
     logSpy = jest.spyOn(logger.logger, 'log');
   });

@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
 /**
- * Basic usage examples for unnbound-logger
+ * Basic usage examples for the logger
  */
-import { StructuredLogger, generateUuid } from '../index';
+import { UnnboundLogger, generateUuid } from '../index';
 
 /**
  * Demonstrates basic usage of the structured logger
@@ -10,14 +10,52 @@ import { StructuredLogger, generateUuid } from '../index';
 function basicLoggingExample(): void {
   console.log('=== Basic Logging Example ===');
 
-  // Create a logger
-  const logger = new StructuredLogger();
+  // Create a new logger instance
+  const logger = new UnnboundLogger();
 
-  // Log at different levels
-  logger.info('Application started');
-  logger.warn('Resource usage high', { cpu: '85%', memory: '70%' });
-  logger.error(new Error('Database connection failed'));
-  logger.debug('Debug information', { requestParams: { id: 123 } });
+  // Basic logging with different levels
+  logger.info('This is an info message');
+  logger.warn('This is a warning message');
+  logger.error('This is an error message');
+  logger.debug('This is a debug message');
+
+  // Logging with structured data
+  logger.info({
+    event: 'user_login',
+    userId: '123',
+    timestamp: new Date().toISOString(),
+  });
+
+  // Logging with workflow tracking
+  const workflowId = generateUuid();
+  logger.info('Starting workflow', { workflowId });
+  logger.info('Processing step 1', { workflowId });
+  logger.info('Processing step 2', { workflowId });
+  logger.info('Workflow completed', { workflowId });
+
+  // HTTP request/response logging
+  const requestId = logger.httpRequest('POST', 'https://api.example.com/users', {
+    name: 'John Doe',
+    email: 'john@example.com',
+  });
+
+  // Later, when the response is received
+  logger.httpResponse(
+    'POST',
+    'https://api.example.com/users',
+    201,
+    { id: '123', status: 'created' },
+    { requestId, duration: 150 }
+  );
+
+  // SFTP operation logging
+  logger.sftpOperation(
+    'PUT',
+    'sftp://example.com',
+    '/uploads',
+    'document.pdf',
+    { duration: 250, fileSize: 1024 }
+  );
 
   console.log('\n');
 }
@@ -28,7 +66,7 @@ function basicLoggingExample(): void {
 function httpLoggingExample(): void {
   console.log('=== HTTP Logging Example ===');
 
-  const logger = new StructuredLogger();
+  const logger = new UnnboundLogger();
   const workflowId = generateUuid();
 
   // Log HTTP request
@@ -71,7 +109,7 @@ function httpLoggingExample(): void {
 function sftpLoggingExample(): void {
   console.log('=== SFTP Logging Example ===');
 
-  const logger = new StructuredLogger();
+  const logger = new UnnboundLogger();
   const workflowId = generateUuid();
 
   // Log connection to SFTP server
@@ -102,7 +140,7 @@ function sftpLoggingExample(): void {
 function workflowExample(): void {
   console.log('=== Workflow Example ===');
 
-  const logger = new StructuredLogger();
+  const logger = new UnnboundLogger();
   const workflowId = generateUuid();
 
   // Start a business process

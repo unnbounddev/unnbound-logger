@@ -2,9 +2,8 @@
 /**
  * Custom configuration examples for unnbound-logger
  */
-import { StructuredLogger } from '../index';
-import { transports, format } from 'winston';
-import { TransformableInfo } from 'logform';
+import { UnnboundLogger } from '../index';
+import winston from 'winston';
 
 /**
  * Demonstrates custom logger configuration
@@ -12,27 +11,29 @@ import { TransformableInfo } from 'logform';
 function customConfigurationExample(): void {
   console.log('=== Custom Configuration Example ===');
 
-  // Create a logger with custom format and transports
-  const logger = new StructuredLogger({
-    defaultLevel: 'debug',
-    serviceName: 'user-service',
+  // Example 1: Custom log level
+  const logger = new UnnboundLogger({
+    defaultLevel: 'debug', // Set default level to debug
+  });
+
+  // Example 2: Custom Winston logger
+  const customLogger = new UnnboundLogger({
+    winstonLogger: winston.createLogger({
+      level: 'info',
+      format: winston.format.json(),
+      transports: [
+        new winston.transports.Console(),
+        new winston.transports.File({ filename: 'error.log', level: 'error' }),
+        new winston.transports.File({ filename: 'combined.log' }),
+      ],
+    }),
+  });
+
+  // Example 3: Custom format
+  const prettyLogger = new UnnboundLogger({
+    format: 'pretty', // Use pretty-printed format
+    serviceName: 'my-service',
     environment: 'development',
-    format: 'pretty',
-    transports: [
-      new transports.Console({
-        format: format.combine(
-          format.colorize(),
-          format.timestamp(),
-          format.printf((info: TransformableInfo) => {
-            const { timestamp, level, message, ...rest } = info;
-            const timestampStr = timestamp as string;
-            const levelStr = level;
-            const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
-            return `${timestampStr} ${levelStr}: ${messageStr} ${JSON.stringify(rest)}`;
-          })
-        ),
-      }),
-    ],
   });
 
   // Log with custom configuration
@@ -51,7 +52,7 @@ function customConfigurationExample(): void {
 function jsonFormatExample(): void {
   console.log('=== JSON Format Example ===');
 
-  const logger = new StructuredLogger({
+  const logger = new UnnboundLogger({
     format: 'json',
   });
 
@@ -66,7 +67,7 @@ function jsonFormatExample(): void {
 function simpleFormatExample(): void {
   console.log('=== Simple Format Example ===');
 
-  const logger = new StructuredLogger({
+  const logger = new UnnboundLogger({
     format: 'simple',
   });
 

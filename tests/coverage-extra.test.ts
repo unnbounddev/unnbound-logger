@@ -1,19 +1,19 @@
-import { StructuredLogger } from '../src';
+import { UnnboundLogger } from '../src';
 import winston from 'winston';
 import * as idGen from '../src/utils/id-generator';
 import * as index from '../src';
 
-describe('Extra coverage for StructuredLogger', () => {
+describe('Extra coverage for UnnboundLogger', () => {
   test('should use a custom Winston logger', () => {
     const customLogger = winston.createLogger({
       transports: [new winston.transports.Console()]
     });
-    const logger = new StructuredLogger({ winstonLogger: customLogger });
-    expect(logger).toBeInstanceOf(StructuredLogger);
+    const logger = new UnnboundLogger({ winstonLogger: customLogger });
+    expect(logger).toBeInstanceOf(UnnboundLogger);
   });
 
   test('should use simple and pretty log formats', () => {
-    const logger = new StructuredLogger();
+    const logger = new UnnboundLogger();
     // @ts-expect-error: Testing private method
     const simpleFormat = logger.getLogFormat('simple');
     // @ts-expect-error: Testing private method
@@ -23,7 +23,7 @@ describe('Extra coverage for StructuredLogger', () => {
   });
 
   test('should handle error instanceof Error branch in error()', () => {
-    const logger = new StructuredLogger();
+    const logger = new UnnboundLogger();
     // @ts-expect-error: access private property for test
     const logSpy = jest.spyOn(logger.logger, 'log');
     const err = new Error('Branch error');
@@ -44,7 +44,7 @@ describe('Extra coverage for StructuredLogger', () => {
   });
 
   test('should use info level in httpResponse if no status code triggers warn/error', () => {
-    const logger = new StructuredLogger();
+    const logger = new UnnboundLogger();
     // @ts-expect-error: access private property for test
     const logSpy = jest.spyOn(logger.logger, 'log');
     logger.httpResponse('GET', 'url', 200, { ok: true }, { duration: 1 });
