@@ -1,30 +1,30 @@
-# Winston Structured Logger
+# 🚀 Winston Structured Logger
 
-A structured logging library built on top of Winston with TypeScript support. This library provides consistent, well-typed logging across different operational contexts including general logs, HTTP operations, and SFTP operations.
+A powerful, type-safe structured logging library built on top of Winston with TypeScript support. This library provides consistent, well-typed logging across different operational contexts including general logs, HTTP operations, and SFTP operations.
 
-## Features
+## ✨ Features
 
-- Type-safe logging with TypeScript interfaces for all log types
-- Structured log format with consistent fields across log types
-- Context-aware logging with support for trace and workflow IDs
-- Specialized logging for HTTP requests/responses and SFTP operations
-- UUID generation for log identification and request tracking
-- Configurable logging levels and outputs
+- 🛡️ Type-safe logging with TypeScript interfaces for all log types
+- 📝 Structured log format with consistent fields across log types
+- 🔍 Context-aware logging with support for trace and workflow IDs
+- 🌐 Specialized logging for HTTP requests/responses and SFTP operations
+- 🔑 UUID generation for log identification and request tracking
+- ⚙️ Configurable logging levels and outputs
+- 🎨 Multiple log formats (JSON, simple, pretty)
+- 🔄 Automatic log level selection for HTTP responses based on status codes
 
-## Installation
+## 📦 Installation
 
 ```bash
 npm install winston-structured-logger
 ```
 
-## Usage
-
-### Basic Usage
+## 🚀 Quick Start
 
 ```typescript
 import { StructuredLogger } from 'winston-structured-logger';
 
-// Create a logger
+// Create a logger with default settings
 const logger = new StructuredLogger();
 
 // Log messages at different levels
@@ -34,7 +34,34 @@ logger.error('Failed to connect to database');
 logger.debug('Debug information', { key: 'value' });
 ```
 
-### Log HTTP Requests and Responses
+## 📚 Usage Examples
+
+### 🔄 Basic Logging
+
+```typescript
+import { StructuredLogger } from 'winston-structured-logger';
+
+const logger = new StructuredLogger();
+
+// Simple string messages
+logger.info('User logged in successfully');
+logger.warn('High memory usage detected');
+
+// Object logging
+logger.info('User profile updated', {
+  userId: '123',
+  changes: ['email', 'avatar']
+});
+
+// Error logging with stack traces
+try {
+  // ... some code that might throw
+} catch (error) {
+  logger.error(error); // Automatically captures stack trace
+}
+```
+
+### 🌐 HTTP Request/Response Logging
 
 ```typescript
 import { StructuredLogger } from 'winston-structured-logger';
@@ -56,26 +83,50 @@ logger.httpResponse(
   { id: '123', success: true },
   { requestId, duration: 150 }  // Duration in milliseconds
 );
+
+// Log an error response
+logger.httpResponse(
+  'GET',
+  'https://api.example.com/users/999',
+  404,
+  { error: 'User not found' },
+  { requestId, duration: 50 }
+);
 ```
 
-### Log SFTP Operations
+### 📂 SFTP Operation Logging
 
 ```typescript
 import { StructuredLogger } from 'winston-structured-logger';
 
 const logger = new StructuredLogger();
 
-// Log an SFTP operation
+// Log a file upload
 logger.sftpOperation(
   'PUT',
   'sftp://sftp.example.com',
   '/uploads/data/',
   'report.csv',
-  { duration: 2500, fileSize: 1024000 }  // Duration in ms, size in bytes
+  {
+    duration: 2500,  // Duration in milliseconds
+    fileSize: 1024000  // Size in bytes
+  }
+);
+
+// Log a file download
+logger.sftpOperation(
+  'GET',
+  'sftp://sftp.example.com',
+  '/downloads/',
+  'data.zip',
+  {
+    duration: 5000,
+    fileSize: 5120000
+  }
 );
 ```
 
-### Advanced Configuration
+### ⚙️ Advanced Configuration
 
 ```typescript
 import { StructuredLogger } from 'winston-structured-logger';
@@ -86,20 +137,25 @@ const logger = new StructuredLogger({
   defaultLevel: 'debug',
   serviceName: 'user-service',
   environment: 'production',
-  format: 'pretty',
+  format: 'pretty',  // 'json', 'simple', or 'pretty'
   transports: [
     new transports.Console(),
-    new transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new transports.File({ filename: 'logs/combined.log' })
+    new transports.File({
+      filename: 'logs/error.log',
+      level: 'error'
+    }),
+    new transports.File({
+      filename: 'logs/combined.log'
+    })
   ]
 });
 ```
 
-### Using Workflow and Trace IDs
+### 🔄 Using Workflow and Trace IDs
 
 ```typescript
-import { 
-  StructuredLogger, 
+import {
+  StructuredLogger,
   generateUuid
 } from 'winston-structured-logger';
 
@@ -132,82 +188,7 @@ logger.httpResponse(
 logger.info('Process completed successfully', { workflowId });
 ```
 
-## API Reference
-
-### StructuredLogger Class
-
-The main class for logging operations.
-
-#### Constructor
-
-```typescript
-constructor(options?: LoggerOptions)
-```
-
-##### LoggerOptions
-
-- `defaultLevel?: LogLevel` - Default log level ('error', 'warn', 'info', 'debug')
-- `winstonLogger?: WinstonLogger` - Custom Winston logger instance
-- `transports?: any[]` - Winston transport configurations
-- `format?: 'json' | 'simple' | 'pretty'` - Log format
-- `serviceName?: string` - Optional service name to include in logs
-- `environment?: string` - Optional environment name to include in logs
-
-#### Methods
-
-##### General Logging
-
-```typescript
-log(level: LogLevel, message: string | Record<string, any>, options?: GeneralLogOptions): void
-error(message: string | Error | Record<string, any>, options?: GeneralLogOptions): void
-warn(message: string | Record<string, any>, options?: GeneralLogOptions): void
-info(message: string | Record<string, any>, options?: GeneralLogOptions): void
-debug(message: string | Record<string, any>, options?: GeneralLogOptions): void
-```
-
-##### HTTP Request Logging
-
-```typescript
-httpRequest(
-  method: HttpMethod,
-  url: string,
-  body?: Record<string, any> | null,
-  options?: HttpRequestLogOptions
-): string
-```
-
-##### HTTP Response Logging
-
-```typescript
-httpResponse(
-  method: HttpMethod,
-  url: string,
-  statusCode: number,
-  body?: Record<string, any> | null,
-  options: HttpResponseLogOptions
-): void
-```
-
-##### SFTP Operation Logging
-
-```typescript
-sftpOperation(
-  method: SftpMethod,
-  url: string,
-  filePath: string,
-  fileName: string,
-  options: SftpOperationLogOptions
-): void
-```
-
-### Utility Functions
-
-- `generateUuid(): string` - Generate a new UUID v4
-- `generateTimestamp(): string` - Generate current ISO timestamp
-- `getTraceId(workflowId: string): string` - Get or create a trace ID for a workflow
-- `clearTraceId(workflowId: string): void` - Clear a trace ID from the internal map
-
-## Log Structure
+## 📋 Log Structure
 
 All logs include these base fields:
 
@@ -219,24 +200,21 @@ All logs include these base fields:
 - `logType`: 'general', 'httpRequest', 'httpResponse', or 'sftpOperation'
 - `message`: Log message content (string, object, or null)
 
-Additional fields based on log type:
+### 🔍 Additional Fields by Log Type
 
-### HTTP Request Logs
-
+#### HTTP Request Logs
 - `requestId`: UUID for the HTTP request
 - `method`: HTTP method
 - `url`: Request URL
 
-### HTTP Response Logs
-
+#### HTTP Response Logs
 - `requestId`: UUID matching the request
 - `method`: HTTP method
 - `url`: Request URL
 - `responseStatusCode`: HTTP status code
 - `duration`: Request duration in milliseconds
 
-### SFTP Operation Logs
-
+#### SFTP Operation Logs
 - `method`: SFTP operation type
 - `url`: SFTP server URL
 - `filePath`: Path to the file on the SFTP server
@@ -244,6 +222,6 @@ Additional fields based on log type:
 - `fileSize`: Size of the file in bytes (optional)
 - `duration`: Operation duration in milliseconds
 
-## License
+## 📝 License
 
 MIT
