@@ -55,6 +55,7 @@ export {
 
 // Create a default logger instance
 const defaultLogger = new StructuredLogger();
+export { defaultLogger };
 
 // Export default logger functions for convenience
 export const log = defaultLogger.log.bind(defaultLogger);

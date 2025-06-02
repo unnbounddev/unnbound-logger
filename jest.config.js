@@ -5,10 +5,13 @@ module.exports = {
   testMatch: ['**/tests/**/*.test.ts'],
   collectCoverage: true,
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov'],
+  coverageReporters: ['text', 'lcov', 'json-summary'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/examples/**',
     '!**/*.d.ts'
   ],
+  coveragePathIgnorePatterns: [
+    "src/index.ts"
+  ]
 };
