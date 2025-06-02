@@ -20,14 +20,9 @@ import {
   HttpRequestLogEntry,
   HttpResponseLogEntry,
   SftpOperationLogEntry,
-  LogEntry
+  LogEntry,
 } from './types';
-import {
-  generateUuid,
-  generateTimestamp,
-  getTraceId,
-  clearTraceId
-} from './utils/id-generator';
+import { generateUuid, generateTimestamp, getTraceId, clearTraceId } from './utils/id-generator';
 
 // Export everything needed for the library
 export {
@@ -55,7 +50,7 @@ export {
   generateUuid,
   generateTimestamp,
   getTraceId,
-  clearTraceId
+  clearTraceId,
 };
 
 // Create a default logger instance

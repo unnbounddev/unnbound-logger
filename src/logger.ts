@@ -4,7 +4,6 @@
 import { createLogger, format, transports, Logger as WinstonLogger } from 'winston';
 import {
   LogLevel,
-  LogType,
   LoggerOptions,
   GeneralLogOptions,
   HttpRequestLogOptions,
@@ -15,13 +14,9 @@ import {
   GeneralLogEntry,
   HttpRequestLogEntry,
   HttpResponseLogEntry,
-  SftpOperationLogEntry
+  SftpOperationLogEntry,
 } from './types';
-import {
-  generateUuid,
-  generateTimestamp,
-  getTraceId
-} from './utils/id-generator';
+import { generateUuid, generateTimestamp, getTraceId } from './utils/id-generator';
 
 /**
  * StructuredLogger provides typed, structured logging with Winston
@@ -51,9 +46,9 @@ export class StructuredLogger {
         format: logFormat,
         defaultMeta: {
           ...(this.serviceName && { service: this.serviceName }),
-          ...(this.environment && { environment: this.environment })
+          ...(this.environment && { environment: this.environment }),
         },
-        transports: options.transports || [new transports.Console()]
+        transports: options.transports || [new transports.Console()],
       });
     }
   }
@@ -66,21 +61,12 @@ export class StructuredLogger {
   private getLogFormat(formatType: 'json' | 'simple' | 'pretty') {
     switch (formatType) {
       case 'simple':
-        return format.combine(
-          format.timestamp(),
-          format.simple()
-        );
+        return format.combine(format.timestamp(), format.simple());
       case 'pretty':
-        return format.combine(
-          format.timestamp(),
-          format.prettyPrint()
-        );
+        return format.combine(format.timestamp(), format.prettyPrint());
       case 'json':
       default:
-        return format.combine(
-          format.timestamp(),
-          format.json()
-        );
+        return format.combine(format.timestamp(), format.json());
     }
   }
 
@@ -90,7 +76,11 @@ export class StructuredLogger {
    * @param message - Log message
    * @param options - Additional logging options
    */
-  log(level: LogLevel, message: string | Record<string, any>, options: GeneralLogOptions = {}): void {
+  log(
+    level: LogLevel,
+    message: string | Record<string, any>,
+    options: GeneralLogOptions = {}
+  ): void {
     const workflowId = options.workflowId || generateUuid();
     const traceId = options.traceId || getTraceId(workflowId);
 
@@ -109,7 +99,7 @@ export class StructuredLogger {
       filePath: null,
       fileName: null,
       fileSize: null,
-      duration: null
+      duration: null,
     };
 
     this.logger.log(level, '', { ...logEntry });
@@ -127,7 +117,7 @@ export class StructuredLogger {
       logMessage = {
         message: message.message,
         stack: message.stack,
-        name: message.name
+        name: message.name,
       };
     } else {
       logMessage = message;
@@ -196,7 +186,7 @@ export class StructuredLogger {
       filePath: null,
       fileName: null,
       fileSize: null,
-      duration: null
+      duration: null,
     };
 
     this.logger.log(options.level || this.defaultLevel, '', { ...logEntry });
@@ -249,7 +239,7 @@ export class StructuredLogger {
       duration: options.duration,
       filePath: null,
       fileName: null,
-      fileSize: null
+      fileSize: null,
     };
 
     this.logger.log(level, '', { ...logEntry });
@@ -288,7 +278,7 @@ export class StructuredLogger {
       filePath,
       fileName,
       fileSize: options.fileSize || null,
-      duration: options.duration
+      duration: options.duration,
     };
 
     this.logger.log(options.level || this.defaultLevel, '', { ...logEntry });

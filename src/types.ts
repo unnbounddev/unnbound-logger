@@ -120,10 +120,10 @@ export interface SftpOperationLogEntry extends BaseLogEntry {
 /**
  * Union type for all log entry types
  */
-export type LogEntry = 
-  | GeneralLogEntry 
-  | HttpRequestLogEntry 
-  | HttpResponseLogEntry 
+export type LogEntry =
+  | GeneralLogEntry
+  | HttpRequestLogEntry
+  | HttpResponseLogEntry
   | SftpOperationLogEntry;
 
 /**

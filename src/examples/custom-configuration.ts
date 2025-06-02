@@ -9,7 +9,7 @@ import { transports, format } from 'winston';
  */
 function customConfigurationExample(): void {
   console.log('=== Custom Configuration Example ===');
-  
+
   // Create a logger with custom format and transports
   const logger = new StructuredLogger({
     defaultLevel: 'debug',
@@ -24,18 +24,18 @@ function customConfigurationExample(): void {
           format.printf(({ timestamp, level, message, ...rest }) => {
             return `${timestamp} ${level}: ${message} ${JSON.stringify(rest)}`;
           })
-        )
-      })
-    ]
+        ),
+      }),
+    ],
   });
-  
+
   // Log with custom configuration
   logger.info('Application started with custom configuration');
-  logger.debug('Detailed configuration', { 
+  logger.debug('Detailed configuration', {
     appVersion: '1.2.3',
-    nodeEnv: 'development'
+    nodeEnv: 'development',
   });
-  
+
   console.log('\n');
 }
 
@@ -44,13 +44,13 @@ function customConfigurationExample(): void {
  */
 function jsonFormatExample(): void {
   console.log('=== JSON Format Example ===');
-  
+
   const logger = new StructuredLogger({
-    format: 'json'
+    format: 'json',
   });
-  
+
   logger.info('This will be formatted as JSON');
-  
+
   console.log('\n');
 }
 
@@ -59,13 +59,13 @@ function jsonFormatExample(): void {
  */
 function simpleFormatExample(): void {
   console.log('=== Simple Format Example ===');
-  
+
   const logger = new StructuredLogger({
-    format: 'simple'
+    format: 'simple',
   });
-  
+
   logger.info('This will be formatted in a simple text format');
-  
+
   console.log('\n');
 }
 
