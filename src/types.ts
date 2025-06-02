@@ -40,7 +40,7 @@ export interface BaseLogEntry {
   /** Type of log entry */
   logType: LogType;
   /** Log message content */
-  message: string | Record<string, any> | null;
+  message: string | Record<string, unknown> | null;
 }
 
 /**
@@ -135,7 +135,7 @@ export interface LoggerOptions {
   /** Winston logger instance (if you want to provide your own) */
   winstonLogger?: WinstonLogger;
   /** Additional transport configurations */
-  transports?: any[];
+  transports?: Array<WinstonLogger['transports'][number]>;
   /** Format for the logs (defaults to JSON) */
   format?: 'json' | 'simple' | 'pretty';
   /** Optional service name to include in logs */
@@ -154,6 +154,8 @@ export interface GeneralLogOptions {
   traceId?: string;
   /** Custom workflow ID */
   workflowId?: string;
+  /** Custom metadata */
+  [key: string]: unknown;
 }
 
 /**

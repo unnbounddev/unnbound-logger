@@ -138,6 +138,8 @@ export interface GeneralLogOptions {
     traceId?: string;
     /** Custom workflow ID */
     workflowId?: string;
+    /** Custom metadata */
+    [key: string]: any;
 }
 /**
  * Options for HTTP request logs

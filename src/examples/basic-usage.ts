@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Basic usage examples for winston-structured-logger
  */
@@ -152,7 +153,7 @@ function workflowExample(): void {
 }
 
 // Run the examples
-(function runExamples() {
+(function runExamples(): void {
   basicLoggingExample();
   httpLoggingExample();
   sftpLoggingExample();

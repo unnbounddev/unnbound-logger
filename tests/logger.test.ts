@@ -7,13 +7,14 @@ jest.mock('uuid', () => ({
 
 // Mock Date to return predictable timestamps
 const mockDate = new Date('2025-01-01T12:00:00.000Z');
-global.Date = jest.fn(() => mockDate) as any;
-(global.Date as any).now = jest.fn(() => mockDate.getTime());
-global.Date.parse = jest.fn((date: string) => new Date(date).getTime());
-global.Date.UTC = jest.fn((a, b, c, d, e, f, g) =>
+const MockDate = jest.fn(() => mockDate) as unknown as typeof Date;
+MockDate.now = jest.fn(() => mockDate.getTime());
+MockDate.parse = jest.fn((date: string) => new Date(date).getTime());
+MockDate.UTC = jest.fn((a, b, c, d, e, f, g) =>
   new Date(Date.UTC(a, b, c, d, e, f, g)).getTime()
 );
-global.Date.prototype.toISOString = jest.fn(() => '2025-01-01T12:00:00.000Z');
+MockDate.prototype.toISOString = jest.fn(() => '2025-01-01T12:00:00.000Z');
+global.Date = MockDate;
 
 describe('StructuredLogger', () => {
   let logger: StructuredLogger;
@@ -21,7 +22,7 @@ describe('StructuredLogger', () => {
 
   beforeEach(() => {
     logger = new StructuredLogger();
-    // @ts-ignore - accessing private property for testing
+    // @ts-expect-error - accessing private property for testing
     logSpy = jest.spyOn(logger.logger, 'log');
   });
 
@@ -151,11 +152,12 @@ describe('StructuredLogger', () => {
     logger.warn('Warning in workflow', { workflowId });
 
     expect(logSpy).toHaveBeenCalledTimes(2);
-    expect(logSpy.mock.calls[0][2]).toMatchObject({
+    const calls = logSpy.mock.calls as Array<[string, string, Record<string, unknown>]>;
+    expect(calls[0][2]).toMatchObject({
       workflowId: 'workflow-123',
       traceId: 'test-uuid', // The traceId should be consistent
     });
-    expect(logSpy.mock.calls[1][2]).toMatchObject({
+    expect(calls[1][2]).toMatchObject({
       workflowId: 'workflow-123',
       traceId: 'test-uuid', // The same traceId should be used
     });

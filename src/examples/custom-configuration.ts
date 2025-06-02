@@ -1,8 +1,10 @@
+/* eslint-disable no-console */
 /**
  * Custom configuration examples for winston-structured-logger
  */
 import { StructuredLogger } from '../index';
 import { transports, format } from 'winston';
+import { TransformableInfo } from 'logform';
 
 /**
  * Demonstrates custom logger configuration
@@ -21,8 +23,12 @@ function customConfigurationExample(): void {
         format: format.combine(
           format.colorize(),
           format.timestamp(),
-          format.printf(({ timestamp, level, message, ...rest }) => {
-            return `${timestamp} ${level}: ${message} ${JSON.stringify(rest)}`;
+          format.printf((info: TransformableInfo) => {
+            const { timestamp, level, message, ...rest } = info;
+            const timestampStr = timestamp as string;
+            const levelStr = level;
+            const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+            return `${timestampStr} ${levelStr}: ${messageStr} ${JSON.stringify(rest)}`;
           })
         ),
       }),
@@ -31,7 +37,7 @@ function customConfigurationExample(): void {
 
   // Log with custom configuration
   logger.info('Application started with custom configuration');
-  logger.debug('Detailed configuration', {
+  logger.debug({
     appVersion: '1.2.3',
     nodeEnv: 'development',
   });
@@ -70,7 +76,7 @@ function simpleFormatExample(): void {
 }
 
 // Run the examples
-(function runExamples() {
+(function runExamples(): void {
   customConfigurationExample();
   jsonFormatExample();
   simpleFormatExample();

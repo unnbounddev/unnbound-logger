@@ -58,7 +58,7 @@ export class StructuredLogger {
    * @param formatType - The format type ('json', 'simple', or 'pretty')
    * @returns Winston format
    */
-  private getLogFormat(formatType: 'json' | 'simple' | 'pretty') {
+  private getLogFormat(formatType: 'json' | 'simple' | 'pretty'): ReturnType<typeof format.combine> {
     switch (formatType) {
       case 'simple':
         return format.combine(format.timestamp(), format.simple());
@@ -78,7 +78,7 @@ export class StructuredLogger {
    */
   log(
     level: LogLevel,
-    message: string | Record<string, any>,
+    message: string | Record<string, unknown>,
     options: GeneralLogOptions = {}
   ): void {
     const workflowId = options.workflowId || generateUuid();
@@ -110,8 +110,8 @@ export class StructuredLogger {
    * @param message - Error message or object
    * @param options - Additional logging options
    */
-  error(message: string | Error | Record<string, any>, options: GeneralLogOptions = {}): void {
-    let logMessage: string | Record<string, any>;
+  error(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): void {
+    let logMessage: string | Record<string, unknown>;
 
     if (message instanceof Error) {
       logMessage = {
@@ -131,7 +131,7 @@ export class StructuredLogger {
    * @param message - Warning message
    * @param options - Additional logging options
    */
-  warn(message: string | Record<string, any>, options: GeneralLogOptions = {}): void {
+  warn(message: string | Record<string, unknown>, options: GeneralLogOptions = {}): void {
     this.log('warn', message, options);
   }
 
@@ -140,7 +140,7 @@ export class StructuredLogger {
    * @param message - Info message
    * @param options - Additional logging options
    */
-  info(message: string | Record<string, any>, options: GeneralLogOptions = {}): void {
+  info(message: string | Record<string, unknown>, options: GeneralLogOptions = {}): void {
     this.log('info', message, options);
   }
 
@@ -149,7 +149,7 @@ export class StructuredLogger {
    * @param message - Debug message
    * @param options - Additional logging options
    */
-  debug(message: string | Record<string, any>, options: GeneralLogOptions = {}): void {
+  debug(message: string | Record<string, unknown>, options: GeneralLogOptions = {}): void {
     this.log('debug', message, options);
   }
 
@@ -164,7 +164,7 @@ export class StructuredLogger {
   httpRequest(
     method: HttpMethod,
     url: string,
-    body: Record<string, any> | null = null,
+    body: Record<string, unknown> | null = null,
     options: HttpRequestLogOptions = {}
   ): string {
     const workflowId = options.workflowId || generateUuid();
@@ -205,7 +205,7 @@ export class StructuredLogger {
     method: HttpMethod,
     url: string,
     statusCode: number,
-    body: Record<string, any> | null = null,
+    body: Record<string, unknown> | null = null,
     options: HttpResponseLogOptions
   ): void {
     const workflowId = options.workflowId || generateUuid();
