@@ -1,5 +1,5 @@
 /**
- * winston-structured-logger
+ * unnbound-logger
  *
  * A structured logging library built on top of Winston with TypeScript support.
  * Provides consistent, well-typed logging across different operational contexts.

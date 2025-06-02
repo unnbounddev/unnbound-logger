@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Custom configuration examples for winston-structured-logger
+ * Custom configuration examples for unnbound-logger
  */
 import { StructuredLogger } from '../index';
 import { transports, format } from 'winston';

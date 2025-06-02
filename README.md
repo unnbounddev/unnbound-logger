@@ -16,13 +16,13 @@ A powerful, type-safe structured logging library built on top of Winston with Ty
 ## 📦 Installation
 
 ```bash
-npm install winston-structured-logger
+npm install unnbound-logger
 ```
 
 ## 🚀 Quick Start
 
 ```typescript
-import { StructuredLogger } from 'winston-structured-logger';
+import { StructuredLogger } from 'unnbound-logger';
 
 // Create a logger with default settings
 const logger = new StructuredLogger();
@@ -39,7 +39,7 @@ logger.debug('Debug information', { key: 'value' });
 ### 🔄 Basic Logging
 
 ```typescript
-import { StructuredLogger } from 'winston-structured-logger';
+import { StructuredLogger } from 'unnbound-logger';
 
 const logger = new StructuredLogger();
 
@@ -64,7 +64,7 @@ try {
 ### 🌐 HTTP Request/Response Logging
 
 ```typescript
-import { StructuredLogger } from 'winston-structured-logger';
+import { StructuredLogger } from 'unnbound-logger';
 
 const logger = new StructuredLogger();
 
@@ -97,7 +97,7 @@ logger.httpResponse(
 ### 📂 SFTP Operation Logging
 
 ```typescript
-import { StructuredLogger } from 'winston-structured-logger';
+import { StructuredLogger } from 'unnbound-logger';
 
 const logger = new StructuredLogger();
 
@@ -129,7 +129,7 @@ logger.sftpOperation(
 ### ⚙️ Advanced Configuration
 
 ```typescript
-import { StructuredLogger } from 'winston-structured-logger';
+import { StructuredLogger } from 'unnbound-logger';
 import { transports, format } from 'winston';
 
 // Create a logger with custom configuration
@@ -157,7 +157,7 @@ const logger = new StructuredLogger({
 import {
   StructuredLogger,
   generateUuid
-} from 'winston-structured-logger';
+} from 'unnbound-logger';
 
 const logger = new StructuredLogger();
 
@@ -223,5 +223,207 @@ All logs include these base fields:
 - `duration`: Operation duration in milliseconds
 
 ## 📝 License
+
+MIT
+
+# Request-Scoped Logging with Trace IDs
+
+A Node.js library for implementing request-scoped logging with trace IDs using AsyncLocalStorage. This library provides automatic trace ID propagation across async operations, HTTP requests, and logging.
+
+## Features
+
+- Request-scoped trace IDs using AsyncLocalStorage
+- Automatic trace ID propagation in HTTP requests
+- Winston logger integration with trace IDs
+- Express middleware for trace ID handling
+- Axios middleware for trace ID injection
+- Support for custom Winston configurations
+
+## Installation
+
+```bash
+npm install unnbound-logger
+```
+
+## Basic Usage
+
+### Express Middleware Setup
+
+```typescript
+import express from 'express';
+import { traceMiddleware, logger } from 'unnbound-logger';
+
+const app = express();
+
+// Add the trace middleware before your routes
+app.use(traceMiddleware);
+
+app.get('/api/example', (req, res) => {
+  // Logs will automatically include the trace ID
+  logger.info('Processing request', { path: req.path });
+  res.json({ success: true });
+});
+```
+
+### Using the Axios Middleware
+
+```typescript
+import axios from 'axios';
+import { axiosTraceMiddleware, logger } from 'unnbound-logger';
+
+// Create your Axios instance
+const api = axios.create({
+  baseURL: 'https://api.example.com'
+});
+
+// Add the trace middleware to your Axios instance
+api.interceptors.request.use(
+  axiosTraceMiddleware.onFulfilled,
+  axiosTraceMiddleware.onRejected
+);
+
+async function makeApiCall() {
+  try {
+    // The trace ID will be automatically added to the request headers
+    const response = await api.get('/data');
+    logger.info('API call successful', { status: response.status });
+  } catch (error) {
+    logger.error('API call failed', { error });
+  }
+}
+```
+
+### Custom Winston Configuration
+
+```typescript
+import winston from 'winston';
+import { traceFormat } from 'unnbound-logger';
+
+const customLogger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    traceFormat, // Add trace ID to all logs
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console()
+  ]
+});
+```
+
+## Advanced Usage
+
+### SFTP Connection Example
+
+```typescript
+import { Client } from 'ssh2';
+import { logger, traceContext } from 'unnbound-logger';
+
+async function sftpOperation() {
+  const client = new Client();
+
+  return new Promise((resolve, reject) => {
+    client.on('ready', () => {
+      logger.info('SFTP connection established');
+
+      client.sftp((err, sftp) => {
+        if (err) {
+          logger.error('SFTP error', { error: err });
+          reject(err);
+          return;
+        }
+
+        sftp.readFile('/remote/path/file.txt', (err, data) => {
+          if (err) {
+            logger.error('File read error', { error: err });
+            reject(err);
+            return;
+          }
+
+          logger.info('File read successful', { size: data.length });
+          resolve(data);
+        });
+      });
+    });
+
+    client.connect({
+      host: 'sftp.example.com',
+      username: 'user',
+      password: 'password'
+    });
+  });
+}
+```
+
+### Custom Trace Context Usage
+
+```typescript
+import { traceContext, logger } from 'unnbound-logger';
+
+async function customOperation() {
+  // Run a block of code with a specific trace ID
+  await traceContext.run('custom-trace-id', async () => {
+    logger.info('Starting operation');
+    // All logs and HTTP requests will use this trace ID
+    await someAsyncOperation();
+    logger.info('Operation completed');
+  });
+}
+```
+
+### Error Handling
+
+```typescript
+import { logger } from 'unnbound-logger';
+
+app.get('/api/error-example', async (req, res) => {
+  try {
+    // Your code here
+    throw new Error('Something went wrong');
+  } catch (error) {
+    // Error logs will include the trace ID
+    logger.error('Operation failed', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+```
+
+## Configuration
+
+### Environment Variables
+
+- `LOG_LEVEL`: Set the logging level (default: 'info')
+- `SERVICE_NAME`: Set the service name in logs (default: 'your-service-name')
+
+### Customizing the Logger
+
+```typescript
+import { logger } from 'unnbound-logger';
+
+// Add custom metadata to all logs
+logger.defaultMeta = {
+  ...logger.defaultMeta,
+  environment: process.env.NODE_ENV,
+  version: '1.0.0'
+};
+```
+
+## Best Practices
+
+1. Always use the `traceMiddleware` as early as possible in your Express application
+2. Add the `axiosTraceMiddleware` to your Axios instances to maintain trace context
+3. Include relevant context in log messages (e.g., request IDs, user IDs)
+4. Use appropriate log levels (error, warn, info, debug)
+5. Structure log messages consistently for better parsing
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
 
 MIT

@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Basic usage examples for winston-structured-logger
+ * Basic usage examples for unnbound-logger
  */
 import { StructuredLogger, generateUuid } from '../index';
 
