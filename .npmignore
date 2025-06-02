@@ -1,0 +1,18 @@
+# source
+src/
+tests/
+
+# config
+tsconfig.json
+jest.config.js
+.eslintrc.js
+.prettierrc
+
+# misc
+.git
+.gitignore
+.github
+coverage/
+*.log
+**/*.test.ts
+examples/
