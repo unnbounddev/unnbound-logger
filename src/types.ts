@@ -179,6 +179,8 @@ export interface GeneralLogOptions {
 export interface HttpRequestLogOptions extends GeneralLogOptions {
   /** Custom request ID */
   requestId?: string;
+  /** Start time of the request for duration calculation */
+  startTime?: number;
 }
 
 /**
@@ -186,7 +188,7 @@ export interface HttpRequestLogOptions extends GeneralLogOptions {
  */
 export interface HttpResponseLogOptions extends HttpRequestLogOptions {
   /** Duration of the request in milliseconds */
-  duration: number;
+  duration?: number;
 }
 
 /**

@@ -164,21 +164,15 @@ export class UnnboundLogger {
 
   /**
    * Logs an HTTP request
-   * @param method - HTTP method
-   * @param url - Request URL
-   * @param body - Optional request body
+   * @param req - Express request object
    * @param options - Additional logging options
    * @returns The request ID for correlating with the response
    */
-  httpRequest(
-    method: HttpMethod,
-    url: string,
-    body: Record<string, unknown> | null = null,
-    options: HttpRequestLogOptions = {}
-  ): string {
+  httpRequest(req: Request, options: HttpRequestLogOptions = {}): string {
     const workflowId = options.workflowId || generateUuid();
     const traceId = options.traceId || getTraceId(workflowId);
     const requestId = options.requestId || generateUuid();
+    const startTime = options.startTime || Date.now();
 
     const logEntry: HttpRequestLogEntry = {
       logId: generateUuid(),
@@ -188,9 +182,14 @@ export class UnnboundLogger {
       workflowId,
       logLevel: options.level || this.defaultLevel,
       logType: 'httpRequest',
-      method,
-      url,
-      message: body,
+      method: req.method as HttpMethod,
+      url: req.originalUrl || req.url,
+      message: {
+        body: req.body,
+        query: req.query,
+        params: req.params,
+        headers: req.headers,
+      },
       responseStatusCode: null,
       filePath: null,
       fileName: null,
@@ -204,29 +203,23 @@ export class UnnboundLogger {
 
   /**
    * Logs an HTTP response
-   * @param method - HTTP method
-   * @param url - Request URL
-   * @param statusCode - HTTP status code
-   * @param body - Optional response body
+   * @param res - Express response object
+   * @param req - Express request object
    * @param options - Additional logging options
    */
-  httpResponse(
-    method: HttpMethod,
-    url: string,
-    statusCode: number,
-    body: Record<string, unknown> | null = null,
-    options: HttpResponseLogOptions
-  ): void {
+  httpResponse(res: Response, req: Request, options: HttpResponseLogOptions = {}): void {
     const workflowId = options.workflowId || generateUuid();
     const traceId = options.traceId || getTraceId(workflowId);
     const requestId = options.requestId || generateUuid();
+    const startTime = options.startTime || Date.now();
+    const duration = options.duration || (Date.now() - startTime);
 
     // Determine log level based on status code
     let level: LogLevel = options.level || this.defaultLevel;
     if (!options.level) {
-      if (statusCode >= 500) {
+      if (res.statusCode >= 500) {
         level = 'error';
-      } else if (statusCode >= 400) {
+      } else if (res.statusCode >= 400) {
         level = 'warn';
       } else {
         level = 'info';
@@ -241,11 +234,14 @@ export class UnnboundLogger {
       workflowId,
       logLevel: level,
       logType: 'httpResponse',
-      method,
-      url,
-      responseStatusCode: statusCode,
-      message: body,
-      duration: options.duration,
+      method: req.method as HttpMethod,
+      url: req.originalUrl || req.url,
+      responseStatusCode: res.statusCode,
+      message: {
+        body: res.locals.body, // Assuming response body is stored in res.locals
+        headers: res.getHeaders(),
+      },
+      duration,
       filePath: null,
       fileName: null,
       fileSize: null,

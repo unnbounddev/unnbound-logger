@@ -69,24 +69,44 @@ logger.info('User action', { userId: '123', action: 'login' });
 
 ```typescript
 import { UnnboundLogger } from 'unnbound-logger';
+import express from 'express';
 
+const app = express();
 const logger = new UnnboundLogger();
 
-// Log HTTP request with object message
-const requestId = logger.httpRequest('POST', 'https://api.example.com/users', {
-  name: 'John Doe',
-  email: 'john@example.com',
+// Middleware to log requests
+app.use((req, res, next) => {
+  // Log the request and get the request ID
+  const requestId = logger.httpRequest(req, {
+    startTime: Date.now()
+  });
+
+  // Store the request ID in res.locals for later use
+  res.locals.requestId = requestId;
+
+  // Add response listener to log the response
+  res.on('finish', () => {
+    logger.httpResponse(res, req, {
+      requestId,
+      startTime: res.locals.startTime
+    });
+  });
+
+  next();
 });
 
-// Log HTTP response with object message
-logger.httpResponse(
-  'POST',
-  'https://api.example.com/users',
-  201,
-  { id: '123', status: 'created' },
-  { requestId, duration: 150 }
-);
+// Example route
+app.post('/api/users', (req, res) => {
+  // Your route handler code here
+  res.status(201).json({ id: '123', status: 'created' });
+});
 ```
+
+The logger automatically captures:
+- Request method, URL, body, query parameters, and headers
+- Response status code, body, and headers
+- Request duration
+- Trace ID and workflow ID (if configured)
 
 ## SFTP Operation Logging
 
