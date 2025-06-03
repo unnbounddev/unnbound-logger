@@ -125,6 +125,78 @@ logger.sftpOperation(
 );
 ```
 
+## Function Tracing with withTrace
+
+The `withTrace` higher-order function allows you to wrap any function with automatic trace context. This is particularly useful for maintaining consistent trace IDs across async operations and distributed systems:
+
+```typescript
+import { UnnboundLogger } from 'unnbound-logger';
+import { withTrace } from 'unnbound-logger/utils/with-trace';
+import { traceContext } from 'unnbound-logger/utils/trace-context';
+
+const logger = new UnnboundLogger();
+
+// Example: Wrapping a function with trace context
+const operation = (value: number) => {
+  const traceId = traceContext.getTraceId();
+  logger.info('Processing value', { value, traceId });
+  return value * 2;
+};
+
+// Wrap the function with trace context
+const tracedOperation = withTrace(operation);
+
+// Execute the function
+const result = tracedOperation(21); // Returns 42
+```
+
+### Using Custom Trace IDs
+
+You can provide your own trace ID when wrapping a function:
+
+```typescript
+const customTraceId = 'custom-trace-123';
+const tracedOperation = withTrace(operation, customTraceId);
+```
+
+### Async Operations
+
+The trace context is maintained across async operations:
+
+```typescript
+const asyncOperation = async (value: number) => {
+  const traceId1 = traceContext.getTraceId();
+  logger.info('First step', { traceId: traceId1 });
+
+  await someAsyncWork();
+
+  const traceId2 = traceContext.getTraceId();
+  logger.info('Second step', { traceId: traceId2 });
+  // traceId1 and traceId2 will be the same
+};
+
+const tracedOperation = withTrace(asyncOperation);
+await tracedOperation(42);
+```
+
+### Benefits
+
+- Automatic trace ID generation
+- Consistent trace context across async operations
+- Support for custom trace IDs
+- Type-safe implementation
+- Works with both sync and async functions
+- Maintains separate trace contexts for different operations
+
+> **Note:** When using `UnnboundLogger`, you don't need to manually call `traceContext.getTraceId()` in your logging calls. The logger automatically includes the current trace ID in all log entries. The example above shows manual trace ID retrieval for demonstration purposes, but in practice, you can simply use the logger methods directly:
+>
+> ```typescript
+> const operation = (value: number) => {
+>   logger.info('Processing value', { value }); // Trace ID is automatically included
+>   return value * 2;
+> };
+> ```
+
 ## Custom Configuration
 
 ```typescript

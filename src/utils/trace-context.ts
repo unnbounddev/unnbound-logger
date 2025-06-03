@@ -19,8 +19,8 @@ class TraceContextManager {
     return TraceContextManager.instance;
   }
 
-  public run(traceId: string, callback: () => Promise<void> | void): void {
-    this.storage.run({ traceId }, callback);
+  public run<T>(traceId: string, callback: () => T): T {
+    return this.storage.run({ traceId }, callback);
   }
 
   public getTraceId(): string | undefined {
