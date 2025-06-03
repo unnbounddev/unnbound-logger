@@ -3,6 +3,7 @@
  * Basic usage examples for the logger
  */
 import { UnnboundLogger, generateUuid } from '../index';
+import { Request, Response } from 'express';
 
 /**
  * Demonstrates basic usage of the structured logger
@@ -34,19 +35,19 @@ function basicLoggingExample(): void {
   logger.info('Workflow completed', { workflowId });
 
   // HTTP request/response logging
-  const requestId = logger.httpRequest('POST', 'https://api.example.com/users', {
-    name: 'John Doe',
-    email: 'john@example.com',
-  });
+  const mockReq = {
+    method: 'POST',
+    url: 'https://api.example.com/users',
+    body: { name: 'John Doe', email: 'john@example.com' },
+  } as Request;
 
-  // Later, when the response is received
-  logger.httpResponse(
-    'POST',
-    'https://api.example.com/users',
-    201,
-    { id: '123', status: 'created' },
-    { requestId, duration: 150 }
-  );
+  const mockRes = {
+    statusCode: 201,
+    locals: {},
+  } as Response;
+
+  const requestId = logger.httpRequest(mockReq);
+  logger.httpResponse(mockRes, mockReq, { requestId, duration: 150 });
 
   // SFTP operation logging
   logger.sftpOperation(
@@ -70,35 +71,33 @@ function httpLoggingExample(): void {
   const workflowId = generateUuid();
 
   // Log HTTP request
-  const requestId = logger.httpRequest(
-    'POST',
-    'https://api.example.com/users',
-    { name: 'John Doe', email: 'john@example.com' },
-    { workflowId }
-  );
+  const mockReq = {
+    method: 'POST',
+    url: 'https://api.example.com/users',
+    body: { name: 'John Doe', email: 'john@example.com' },
+  } as Request;
 
-  // Log successful HTTP response
-  logger.httpResponse(
-    'POST',
-    'https://api.example.com/users',
-    201,
-    { id: '123', success: true },
-    { requestId, workflowId, duration: 150 }
-  );
+  const mockRes = {
+    statusCode: 201,
+    locals: {},
+  } as Response;
+
+  const requestId = logger.httpRequest(mockReq, { workflowId });
+  logger.httpResponse(mockRes, mockReq, { requestId, workflowId, duration: 150 });
 
   // Log HTTP request that will fail
-  const errorRequestId = logger.httpRequest('GET', 'https://api.example.com/invalid', null, {
-    workflowId,
-  });
+  const errorReq = {
+    method: 'GET',
+    url: 'https://api.example.com/invalid',
+  } as Request;
 
-  // Log error HTTP response
-  logger.httpResponse(
-    'GET',
-    'https://api.example.com/invalid',
-    404,
-    { error: 'Resource not found' },
-    { requestId: errorRequestId, workflowId, duration: 90 }
-  );
+  const errorRes = {
+    statusCode: 404,
+    locals: {},
+  } as Response;
+
+  const errorRequestId = logger.httpRequest(errorReq, { workflowId });
+  logger.httpResponse(errorRes, errorReq, { requestId: errorRequestId, workflowId, duration: 90 });
 
   console.log('\n');
 }
@@ -150,21 +149,19 @@ function workflowExample(): void {
   });
 
   // Log API call to payment service
-  const paymentRequestId = logger.httpRequest(
-    'POST',
-    'https://api.payments.example.com/process',
-    { orderId: 'ORD-12345', amount: 99.99 },
-    { workflowId }
-  );
+  const paymentReq = {
+    method: 'POST',
+    url: 'https://api.payments.example.com/process',
+    body: { orderId: 'ORD-12345', amount: 99.99 },
+  } as Request;
 
-  // Log payment response
-  logger.httpResponse(
-    'POST',
-    'https://api.payments.example.com/process',
-    200,
-    { transactionId: 'TXN-789', status: 'approved' },
-    { requestId: paymentRequestId, workflowId, duration: 300 }
-  );
+  const paymentRes = {
+    statusCode: 200,
+    locals: {},
+  } as Response;
+
+  const paymentRequestId = logger.httpRequest(paymentReq, { workflowId });
+  logger.httpResponse(paymentRes, paymentReq, { requestId: paymentRequestId, workflowId, duration: 300 });
 
   // Log fulfillment step
   logger.info('Order fulfillment initiated', {

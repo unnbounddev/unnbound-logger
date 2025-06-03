@@ -1,5 +1,6 @@
 import pino from 'pino';
 import { LoggingEngine, LogLevel } from '../types';
+import { traceContext } from '../utils/trace-context';
 
 /**
  * Pino adapter for the LoggingEngine interface
@@ -28,11 +29,17 @@ export class PinoAdapter implements LoggingEngine {
   }
 
   log(level: LogLevel, message: string | Record<string, unknown>, meta: Record<string, unknown>): void {
+    const traceId = traceContext.getTraceId();
+    const logData = {
+      ...meta,
+      ...(traceId && { traceId }),
+    };
+
     if (typeof message === 'string') {
-      this.logger[level](meta, message);
+      this.logger[level](logData, message);
     } else {
       // If message is an object, merge it with meta
-      this.logger[level]({ ...message, ...meta });
+      this.logger[level]({ ...message, ...logData });
     }
   }
 

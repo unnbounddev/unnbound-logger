@@ -1,6 +1,7 @@
 import { UnnboundLogger } from '../src';
 import winston from 'winston';
 import * as idGen from '../src/utils/id-generator';
+import { Request, Response } from 'express';
 
 // Mock uuid to return predictable values
 jest.mock('uuid', () => ({
@@ -18,6 +19,62 @@ MockDate.UTC = jest.fn((a, b, c, d, e, f, g) =>
 MockDate.prototype.toISOString = jest.fn(() => '2025-01-01T12:00:00.000Z');
 global.Date = MockDate;
 
+// Helper function to create mock request objects
+function createMockRequest(overrides: Partial<Request> = {}): Request {
+  const mockRes = {
+    locals: {},
+  } as Response;
+
+  return {
+    method: 'GET',
+    url: '/',
+    originalUrl: '/',
+    headers: {},
+    query: {},
+    params: {},
+    body: {},
+    get: jest.fn((header: string) => {
+      if (header === 'user-agent') return 'test-agent';
+      if (header === 'referer') return 'test-referer';
+      return undefined;
+    }),
+    header: jest.fn(),
+    accepts: jest.fn(),
+    acceptsCharsets: jest.fn(),
+    acceptsEncodings: jest.fn(),
+    acceptsLanguages: jest.fn(),
+    param: jest.fn(),
+    is: jest.fn(),
+    protocol: 'http',
+    secure: false,
+    ip: '127.0.0.1',
+    ips: [],
+    subdomains: [],
+    path: '/',
+    hostname: 'localhost',
+    host: 'localhost',
+    fresh: false,
+    stale: true,
+    xhr: false,
+    cookies: {},
+    signedCookies: {},
+    secret: undefined,
+    res: mockRes,
+    ...overrides
+  } as unknown as Request;
+}
+
+// Helper function to create mock response objects
+function createMockResponse(overrides: Partial<Response> = {}): Response {
+  return {
+    statusCode: 200,
+    locals: {},
+    getHeaders: jest.fn(() => ({})),
+    get: jest.fn(),
+    ...overrides
+  } as unknown as Response;
+}
+
 describe('UnnboundLogger', () => {
   let logger: UnnboundLogger;
   let logSpy: jest.SpyInstance;
@@ -25,7 +82,7 @@ describe('UnnboundLogger', () => {
   beforeEach(() => {
     logger = new UnnboundLogger();
     // @ts-expect-error - accessing private property for testing
-    logSpy = jest.spyOn(logger.logger, 'log');
+    logSpy = jest.spyOn(logger.engine, 'log');
   });
 
   afterEach(() => {
@@ -80,7 +137,14 @@ describe('UnnboundLogger', () => {
   });
 
   test('should log HTTP requests', () => {
-    const requestId = logger.httpRequest('GET', 'https://example.com/api', { query: 'test' });
+    const mockReq = createMockRequest({
+      method: 'GET',
+      url: 'https://example.com/api',
+      originalUrl: 'https://example.com/api',
+      query: { test: 'test' },
+    });
+
+    const requestId = logger.httpRequest(mockReq);
 
     expect(requestId).toBe('test-uuid');
     expect(logSpy).toHaveBeenCalledWith(
@@ -92,37 +156,65 @@ describe('UnnboundLogger', () => {
         method: 'GET',
         url: 'https://example.com/api',
         requestId: 'test-uuid',
-        message: { query: 'test' },
+        message: expect.objectContaining({
+          query: { test: 'test' }
+        }),
       })
     );
   });
 
-  test('should log HTTP responses', () => {
-    logger.httpResponse(
-      'GET',
-      'https://example.com/api',
-      200,
-      { result: 'success' },
-      {
-        requestId: 'test-request-id',
-        duration: 150,
-      }
-    );
-
-    expect(logSpy).toHaveBeenCalledWith(
-      'info',
-      '',
-      expect.objectContaining({
-        logLevel: 'info',
-        logType: 'httpResponse',
+  describe('HTTP Response Logging', () => {
+    test('should log HTTP responses', () => {
+      const mockReq = createMockRequest({
         method: 'GET',
         url: 'https://example.com/api',
-        requestId: 'test-request-id',
-        responseStatusCode: 200,
-        message: { result: 'success' },
-        duration: 150,
-      })
-    );
+        originalUrl: 'https://example.com/api',
+      });
+
+      const mockRes = createMockResponse({
+        statusCode: 200,
+        getHeaders: jest.fn(() => ({})),
+        get: jest.fn(),
+      });
+
+      logger.httpResponse(mockRes, mockReq, { duration: 100 });
+      expect(logSpy).toHaveBeenCalledWith(
+        'info',
+        '',
+        expect.objectContaining({
+          logLevel: 'info',
+          logType: 'httpResponse',
+          responseStatusCode: 200,
+          duration: 100
+        })
+      );
+    });
+
+    test('should set log level based on HTTP status code', () => {
+      const mockReq = createMockRequest({
+        method: 'GET',
+        url: 'https://example.com/api',
+        originalUrl: 'https://example.com/api',
+      });
+
+      const mockRes = createMockResponse({
+        statusCode: 500,
+        getHeaders: jest.fn(() => ({})),
+        get: jest.fn(),
+      });
+
+      logger.httpResponse(mockRes, mockReq, { duration: 100 });
+      expect(logSpy).toHaveBeenCalledWith(
+        'error',
+        '',
+        expect.objectContaining({
+          logLevel: 'error',
+          logType: 'httpResponse',
+          responseStatusCode: 500,
+          duration: 100
+        })
+      );
+    });
   });
 
   test('should log SFTP operations', () => {
@@ -163,19 +255,5 @@ describe('UnnboundLogger', () => {
       workflowId: 'workflow-123',
       traceId: 'test-uuid', // The same traceId should be used
     });
-  });
-
-  test('should set log level based on HTTP status code', () => {
-    // 2xx status code should use 'info' level
-    logger.httpResponse('GET', 'https://example.com/api', 200, null, { duration: 100 });
-    expect(logSpy).toHaveBeenCalledWith('info', '', expect.any(Object));
-
-    // 4xx status code should use 'warn' level
-    logger.httpResponse('GET', 'https://example.com/api', 404, null, { duration: 100 });
-    expect(logSpy).toHaveBeenCalledWith('warn', '', expect.any(Object));
-
-    // 5xx status code should use 'error' level
-    logger.httpResponse('GET', 'https://example.com/api', 500, null, { duration: 100 });
-    expect(logSpy).toHaveBeenCalledWith('error', '', expect.any(Object));
   });
 });

@@ -1,5 +1,5 @@
 import express from 'express';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { UnnboundLogger } from '../index';
 
 const logger = new UnnboundLogger();
@@ -27,7 +27,16 @@ app.get('/api/example', async (req, res) => {
 
     res.json({ success: true, data: response.data });
   } catch (error) {
-    logger.error('External API call failed', { error });
+    if (error instanceof AxiosError) {
+      logger.error('External API call failed', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        message: error.message,
+        code: error.code
+      });
+    } else {
+      logger.error('Unexpected error occurred', { error: error instanceof Error ? error.message : String(error) });
+    }
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });

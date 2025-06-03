@@ -3,7 +3,7 @@
  * Custom configuration examples for unnbound-logger
  */
 import { UnnboundLogger } from '../index';
-import winston from 'winston';
+import { Console, File } from 'winston/lib/winston/transports';
 
 /**
  * Demonstrates custom logger configuration
@@ -16,22 +16,21 @@ function customConfigurationExample(): void {
     defaultLevel: 'debug', // Set default level to debug
   });
 
-  // Example 2: Custom Winston logger
+  // Example 2: Custom Winston logger with transports
   const customLogger = new UnnboundLogger({
-    winstonLogger: winston.createLogger({
-      level: 'info',
-      format: winston.format.json(),
-      transports: [
-        new winston.transports.Console(),
-        new winston.transports.File({ filename: 'error.log', level: 'error' }),
-        new winston.transports.File({ filename: 'combined.log' }),
-      ],
-    }),
+    defaultLevel: 'info',
+    transports: [
+      new Console(),
+      new File({ filename: 'error.log', level: 'error' }),
+      new File({ filename: 'combined.log' }),
+    ],
+    serviceName: 'custom-service',
+    environment: 'development'
   });
 
-  // Example 3: Custom format
+  // Example 3: Service-specific configuration
   const prettyLogger = new UnnboundLogger({
-    format: 'pretty', // Use pretty-printed format
+    defaultLevel: 'info',
     serviceName: 'my-service',
     environment: 'development',
   });
@@ -53,7 +52,9 @@ function jsonFormatExample(): void {
   console.log('=== JSON Format Example ===');
 
   const logger = new UnnboundLogger({
-    format: 'json',
+    defaultLevel: 'info',
+    serviceName: 'json-service',
+    environment: 'development'
   });
 
   logger.info('This will be formatted as JSON');
@@ -68,7 +69,9 @@ function simpleFormatExample(): void {
   console.log('=== Simple Format Example ===');
 
   const logger = new UnnboundLogger({
-    format: 'simple',
+    defaultLevel: 'info',
+    serviceName: 'simple-service',
+    environment: 'development'
   });
 
   logger.info('This will be formatted in a simple text format');
