@@ -4,7 +4,7 @@
  * A structured logging library built on top of Winston with TypeScript support.
  * Provides consistent, well-typed logging across different operational contexts.
  */
-import { UnnboundLogger } from './logger';
+import { UnnboundLogger } from './unnbound-logger';
 import {
   LogLevel,
   LogType,

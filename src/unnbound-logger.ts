@@ -33,6 +33,8 @@ export class UnnboundLogger {
   private serviceName?: string;
   private environment?: string;
   private traceHeaderKey: string;
+  private ignoreTraceRoutes: string[];
+  private ignoreAxiosTraceRoutes: string[];
 
   /**
    * Creates a new UnnboundLogger instance
@@ -43,6 +45,8 @@ export class UnnboundLogger {
     this.serviceName = options.serviceName;
     this.environment = options.environment;
     this.traceHeaderKey = options.traceHeaderKey || 'unnbound-trace-id';
+    this.ignoreTraceRoutes = options.ignoreTraceRoutes || [];
+    this.ignoreAxiosTraceRoutes = options.ignoreAxiosTraceRoutes || [];
 
     if (options.engine) {
       this.engine = options.engine;
@@ -55,6 +59,24 @@ export class UnnboundLogger {
         environment: this.environment,
       });
     }
+  }
+
+  /**
+   * Checks if a path matches any of the ignore patterns
+   * @param path - The path to check
+   * @param patterns - Array of glob patterns to match against
+   * @returns boolean indicating if the path should be ignored
+   */
+  private shouldIgnorePath(path: string, patterns: string[]): boolean {
+    return patterns.some(pattern => {
+      // Convert glob pattern to regex
+      const regexPattern = pattern
+        .replace(/\./g, '\\.') // Escape dots
+        .replace(/\*/g, '.*') // Convert * to .*
+        .replace(/\?/g, '.'); // Convert ? to .
+      const regex = new RegExp(`^${regexPattern}$`);
+      return regex.test(path);
+    });
   }
 
   /**
@@ -278,6 +300,11 @@ export class UnnboundLogger {
 
   // Trace middleware
   public traceMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+    // Check if the route should be ignored
+    if (this.shouldIgnorePath(req.path, this.ignoreTraceRoutes)) {
+      return next();
+    }
+
     const traceId = req.header(this.traceHeaderKey) || uuidv4();
     res.setHeader(this.traceHeaderKey, traceId);
     traceContext.run(traceId, () => {
@@ -288,6 +315,11 @@ export class UnnboundLogger {
   // Axios trace middleware
   public axiosTraceMiddleware = {
     onFulfilled: (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
+      // Check if the URL should be ignored
+      if (config.url && this.shouldIgnorePath(config.url, this.ignoreAxiosTraceRoutes)) {
+        return config;
+      }
+
       const traceId = traceContext.getTraceId();
       if (traceId) {
         const headers = new AxiosHeaders(config.headers);

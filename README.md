@@ -132,7 +132,29 @@ const pinoLogger = new UnnboundLogger({
     environment: 'development'
   })
 });
+
+// Configure route filtering for trace middleware
+const loggerWithRouteFiltering = new UnnboundLogger({
+  // Routes to ignore in trace middleware (supports glob patterns)
+  ignoreTraceRoutes: [
+    '/health',           // Ignore exact path
+    '/metrics/*',        // Ignore all paths under metrics
+    '/static/*.js',      // Ignore all JS files in static directory
+    '/api/v1/status'     // Ignore specific API endpoint
+  ],
+  // Routes to ignore in axios trace middleware (supports glob patterns)
+  ignoreAxiosTraceRoutes: [
+    'https://api.example.com/health',  // Ignore specific external API
+    'https://metrics.*.com/*'          // Ignore all metrics endpoints
+  ]
+});
 ```
+
+The route filtering options support glob patterns:
+- `*` matches any sequence of characters
+- `?` matches any single character
+- `.` matches literal dots
+- Patterns are matched against the full path/URL
 
 ## Creating Custom Logging Engines
 

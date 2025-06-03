@@ -153,6 +153,10 @@ export interface LoggerOptions {
   environment?: string;
   /** Optional trace header key */
   traceHeaderKey?: string;
+  /** Routes to ignore in trace middleware (supports glob patterns) */
+  ignoreTraceRoutes?: string[];
+  /** Routes to ignore in axios trace middleware (supports glob patterns) */
+  ignoreAxiosTraceRoutes?: string[];
 }
 
 /**
