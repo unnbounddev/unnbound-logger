@@ -40,13 +40,6 @@ export class UnnboundLogger {
 
     if (options.engine) {
       this.engine = options.engine;
-    } else if (options.winstonLogger) {
-      // Create a Winston adapter from the provided Winston logger
-      this.engine = new WinstonAdapter({
-        level: this.defaultLevel,
-        serviceName: this.serviceName,
-        environment: this.environment,
-      });
     } else {
       // Create a default Winston adapter
       this.engine = new WinstonAdapter({

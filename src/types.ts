@@ -145,8 +145,6 @@ export interface LoggerOptions {
   defaultLevel?: LogLevel;
   /** Custom logging engine implementation */
   engine?: LoggingEngine;
-  /** Winston logger instance (if you want to provide your own) */
-  winstonLogger?: WinstonLogger;
   /** Additional transport configurations */
   transports?: Array<WinstonLogger['transports'][number]>;
   /** Optional service name to include in logs */

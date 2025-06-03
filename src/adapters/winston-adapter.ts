@@ -1,5 +1,15 @@
 import { Logger as WinstonLogger, createLogger, format, transports } from 'winston';
 import { LoggingEngine, LogLevel } from '../types';
+import { traceContext } from '../tracing/trace-context';
+
+// Trace format for Winston
+const traceFormat = format((info) => {
+  const traceId = traceContext.getTraceId();
+  if (traceId) {
+    info.traceId = traceId;
+  }
+  return info;
+});
 
 /**
  * Winston adapter for the LoggingEngine interface
@@ -17,7 +27,8 @@ export class WinstonAdapter implements LoggingEngine {
       level: options.level || 'info',
       format: format.combine(
         format.timestamp(),
-        format.json()
+        traceFormat(),
+        format.json(),
       ),
       defaultMeta: {
         ...(options.serviceName && { service: options.serviceName }),

@@ -1,12 +1,12 @@
 import express from 'express';
-import { traceMiddleware } from './trace-middleware';
-import { logger } from './logger';
 import axios from 'axios';
+import { UnnboundLogger } from '../index';
 
+const logger = new UnnboundLogger();
 const app = express();
 
 // Add the trace middleware
-app.use(traceMiddleware);
+// app.use(traceMiddleware);
 
 // Example route
 app.get('/api/example', async (req, res) => {
@@ -33,3 +33,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   logger.info(`Server started on port ${PORT}`);
 });
+
+console.log('Hello World after app.listen');

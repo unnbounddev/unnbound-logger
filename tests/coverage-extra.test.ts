@@ -8,7 +8,7 @@ describe('Extra coverage for UnnboundLogger', () => {
     const customLogger = winston.createLogger({
       transports: [new winston.transports.Console()]
     });
-    const logger = new UnnboundLogger({ winstonLogger: customLogger });
+    const logger = new UnnboundLogger({ engine: customLogger });
     expect(logger).toBeInstanceOf(UnnboundLogger);
   });
 
