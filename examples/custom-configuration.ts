@@ -2,7 +2,7 @@
 /**
  * Custom configuration examples for unnbound-logger
  */
-import { UnnboundLogger } from '../index';
+import { UnnboundLogger } from '../src/index';
 import { Console, File } from 'winston/lib/winston/transports';
 
 /**

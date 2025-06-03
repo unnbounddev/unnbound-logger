@@ -2,7 +2,7 @@
 /**
  * Basic usage examples for the logger
  */
-import { UnnboundLogger, generateUuid } from '../index';
+import { UnnboundLogger, generateUuid } from '../src/index';
 import { Request, Response } from 'express';
 
 /**

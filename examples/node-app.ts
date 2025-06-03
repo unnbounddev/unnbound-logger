@@ -1,6 +1,6 @@
 import express from 'express';
 import axios, { AxiosError } from 'axios';
-import { UnnboundLogger } from '../index';
+import { UnnboundLogger } from '../src/index';
 
 const logger = new UnnboundLogger();
 const app = express();

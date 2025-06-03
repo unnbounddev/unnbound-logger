@@ -15,7 +15,9 @@
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "prepublishOnly": "npm run build",
     "check-coverage": "ts-node scripts/check-coverage.ts",
-    "start:example:node-app": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/examples/node-app.ts"
+    "start:example:node-app": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' examples/node-app.ts",
+    "start:example:basic-usage": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' examples/basic-usage.ts",
+    "start:example:custom-configuration": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' examples/custom-configuration.ts"
   },
   "keywords": [
     "logging",
