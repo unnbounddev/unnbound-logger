@@ -108,22 +108,55 @@ The logger automatically captures:
 - Request duration
 - Trace ID and workflow ID (if configured)
 
-## SFTP Operation Logging
+## Middleware Usage
+
+### Express Trace Middleware
+
+The library provides a trace middleware for Express applications that automatically logs HTTP requests and maintains trace context:
 
 ```typescript
 import { UnnboundLogger } from 'unnbound-logger';
+import express from 'express';
+
+const app = express();
+const logger = new UnnboundLogger();
+
+// Apply the trace middleware globally
+app.use(logger.traceMiddleware);
+
+```
+
+The trace middleware automatically:
+- Logs incoming requests with method, URL, headers, and body
+- Generates and maintains trace IDs across the request lifecycle
+- Measures request duration
+- Handles errors and logs them appropriately
+
+### Axios Trace Middleware
+
+For logging outgoing HTTP requests made with Axios:
+
+```typescript
+import { UnnboundLogger } from 'unnbound-logger';
+import axios from 'axios';
 
 const logger = new UnnboundLogger();
 
-// Log SFTP operation with object message
-logger.sftpOperation(
-  'PUT',
-  'sftp://example.com',
-  '/uploads',
-  'document.pdf',
-  { duration: 250, fileSize: 1024 }
+// Add Axios trace middleware
+axios.interceptors.request.use(
+  logger.axiosTraceMiddleware.onFulfilled,
+  logger.axiosTraceMiddleware.onRejected
 );
+
+// All requests made with axios will be automatically logged
+axios.get('https://api.example.com/data');
 ```
+
+The Axios trace middleware:
+- Logs outgoing requests with method, URL, headers, and body
+- Maintains trace context across requests
+- Handles errors and logs them appropriately
+- Supports request/response filtering through configuration
 
 ## Function Tracing with withTrace
 
@@ -306,8 +339,3 @@ new UnnboundLogger(options?: LoggerOptions)
 - `debug(message: string | Record<string, unknown>, options?: GeneralLogOptions): void`
 - `httpRequest(method: HttpMethod, url: string, body?: Record<string, unknown>, options?: HttpRequestLogOptions): string`
 - `httpResponse(method: HttpMethod, url: string, statusCode: number, body?: Record<string, unknown>, options: HttpResponseLogOptions): void`
-- `sftpOperation(method: SftpMethod, url: string, filePath: string, fileName: string, options: SftpOperationLogOptions): void`
-
-## License
-
-MIT

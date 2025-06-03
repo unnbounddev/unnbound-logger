@@ -448,6 +448,5 @@ describe('index default logger exports', () => {
 
     expect(() => index.httpRequest(mockReq)).not.toThrow();
     expect(() => index.httpResponse(mockRes, mockReq, { duration: 100 })).not.toThrow();
-    expect(() => index.sftpOperation('PUT', 'url', '/', 'file', { duration: 1 })).not.toThrow();
   });
 });

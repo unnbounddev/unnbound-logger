@@ -8,13 +8,10 @@ import {
   GeneralLogOptions,
   HttpRequestLogOptions,
   HttpResponseLogOptions,
-  SftpOperationLogOptions,
   HttpMethod,
-  SftpMethod,
   GeneralLogEntry,
   HttpRequestLogEntry,
   HttpResponseLogEntry,
-  SftpOperationLogEntry,
   LoggingEngine,
 } from './types';
 import { generateUuid, generateTimestamp, getTraceId } from './utils/id-generator';
@@ -302,45 +299,6 @@ export class UnnboundLogger {
     }
 
     return sanitized;
-  }
-
-  /**
-   * Logs an SFTP operation
-   * @param method - SFTP method
-   * @param url - SFTP server URL
-   * @param filePath - Path to the file on the SFTP server
-   * @param fileName - Name of the file
-   * @param options - Additional logging options
-   */
-  sftpOperation(
-    method: SftpMethod,
-    url: string,
-    filePath: string,
-    fileName: string,
-    options: SftpOperationLogOptions
-  ): void {
-    const workflowId = options.workflowId || generateUuid();
-    const traceId = options.traceId || getTraceId(workflowId);
-
-    const logEntry: SftpOperationLogEntry = {
-      logId: generateUuid(),
-      timestamp: generateTimestamp(),
-      requestId: null,
-      traceId,
-      workflowId,
-      logLevel: options.level || this.defaultLevel,
-      logType: 'sftpOperation',
-      method,
-      url,
-      responseStatusCode: null,
-      message: null,
-      filePath,
-      fileName,
-      fileSize: options.fileSize || null,
-      duration: options.duration,
-    };
-
-    this.engine.log(options.level || this.defaultLevel, '', { ...logEntry });
   }
 
   // Public getter for traceHeaderKey

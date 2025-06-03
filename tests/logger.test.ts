@@ -217,28 +217,6 @@ describe('UnnboundLogger', () => {
     });
   });
 
-  test('should log SFTP operations', () => {
-    logger.sftpOperation('PUT', 'sftp://example.com', '/path/to/', 'file.txt', {
-      duration: 300,
-      fileSize: 1024,
-    });
-
-    expect(logSpy).toHaveBeenCalledWith(
-      'info',
-      '',
-      expect.objectContaining({
-        logLevel: 'info',
-        logType: 'sftpOperation',
-        method: 'PUT',
-        url: 'sftp://example.com',
-        filePath: '/path/to/',
-        fileName: 'file.txt',
-        fileSize: 1024,
-        duration: 300,
-      })
-    );
-  });
-
   test('should use workflow IDs for tracing', () => {
     const workflowId = 'workflow-123';
 

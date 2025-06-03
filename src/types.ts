@@ -11,17 +11,12 @@ export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 /**
  * Available log types
  */
-export type LogType = 'general' | 'httpRequest' | 'httpResponse' | 'sftpOperation';
+export type LogType = 'general' | 'httpRequest' | 'httpResponse';
 
 /**
  * HTTP methods supported for HTTP logging
  */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD';
-
-/**
- * SFTP methods supported for SFTP logging
- */
-export type SftpMethod = 'CONNECT' | 'LIST' | 'GET' | 'PUT' | 'DELETE' | 'MKDIR' | 'RMDIR' | 'RENAME';
 
 /**
  * Interface for logging engine implementations
@@ -108,34 +103,12 @@ export interface HttpResponseLogEntry extends BaseLogEntry {
 }
 
 /**
- * Interface for SFTP operation logs
- */
-export interface SftpOperationLogEntry extends BaseLogEntry {
-  logType: 'sftpOperation';
-  requestId: null;
-  /** SFTP operation method */
-  method: SftpMethod;
-  /** SFTP server URL */
-  url: string;
-  responseStatusCode: null;
-  /** Path to the file on the SFTP server */
-  filePath: string;
-  /** Name of the file */
-  fileName: string;
-  /** Size of the file in bytes */
-  fileSize: number | null;
-  /** Duration of the SFTP operation in milliseconds */
-  duration: number;
-}
-
-/**
  * Union type for all log entry types
  */
 export type LogEntry =
   | GeneralLogEntry
   | HttpRequestLogEntry
-  | HttpResponseLogEntry
-  | SftpOperationLogEntry;
+  | HttpResponseLogEntry;
 
 /**
  * Configuration options for the logger
@@ -189,14 +162,4 @@ export interface HttpRequestLogOptions extends GeneralLogOptions {
 export interface HttpResponseLogOptions extends HttpRequestLogOptions {
   /** Duration of the request in milliseconds */
   duration?: number;
-}
-
-/**
- * Options for SFTP operation logs
- */
-export interface SftpOperationLogOptions extends GeneralLogOptions {
-  /** Duration of the SFTP operation in milliseconds */
-  duration: number;
-  /** Size of the file in bytes */
-  fileSize?: number | null;
 }

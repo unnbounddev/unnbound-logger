@@ -49,15 +49,6 @@ function basicLoggingExample(): void {
   const requestId = logger.httpRequest(mockReq);
   logger.httpResponse(mockRes, mockReq, { requestId, duration: 150 });
 
-  // SFTP operation logging
-  logger.sftpOperation(
-    'PUT',
-    'sftp://example.com',
-    '/uploads',
-    'document.pdf',
-    { duration: 250, fileSize: 1024 }
-  );
-
   console.log('\n');
 }
 
@@ -103,37 +94,6 @@ function httpLoggingExample(): void {
 }
 
 /**
- * Demonstrates SFTP operation logging
- */
-function sftpLoggingExample(): void {
-  console.log('=== SFTP Logging Example ===');
-
-  const logger = new UnnboundLogger();
-  const workflowId = generateUuid();
-
-  // Log connection to SFTP server
-  logger.sftpOperation('CONNECT', 'sftp://sftp.example.com', '/', '', {
-    workflowId,
-    duration: 350,
-  });
-
-  // Log listing files
-  logger.sftpOperation('LIST', 'sftp://sftp.example.com', '/uploads/', '', {
-    workflowId,
-    duration: 120,
-  });
-
-  // Log uploading a file
-  logger.sftpOperation('PUT', 'sftp://sftp.example.com', '/uploads/', 'report.csv', {
-    workflowId,
-    duration: 2500,
-    fileSize: 1024000,
-  });
-
-  console.log('\n');
-}
-
-/**
  * Demonstrates workflow tracking
  */
 function workflowExample(): void {
@@ -170,13 +130,6 @@ function workflowExample(): void {
     warehouseId: 'WH-5',
   });
 
-  // Log SFTP upload of order details
-  logger.sftpOperation('PUT', 'sftp://warehouse.example.com', '/orders/', 'ORD-12345.json', {
-    workflowId,
-    duration: 150,
-    fileSize: 2048,
-  });
-
   // Complete the workflow
   logger.info('Order processing completed successfully', {
     workflowId,
@@ -191,6 +144,5 @@ function workflowExample(): void {
 (function runExamples(): void {
   basicLoggingExample();
   httpLoggingExample();
-  sftpLoggingExample();
   workflowExample();
 })();
