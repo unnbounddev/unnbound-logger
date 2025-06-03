@@ -151,6 +151,8 @@ export interface LoggerOptions {
   serviceName?: string;
   /** Optional environment name to include in logs */
   environment?: string;
+  /** Optional trace header key */
+  traceHeaderKey?: string;
 }
 
 /**

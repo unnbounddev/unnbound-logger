@@ -1,6 +1,6 @@
 import { Logger as WinstonLogger, createLogger, format, transports } from 'winston';
 import { LoggingEngine, LogLevel } from '../types';
-import { traceContext } from '../tracing/trace-context';
+import { traceContext } from '../utils/trace-context';
 
 // Trace format for Winston
 const traceFormat = format((info) => {

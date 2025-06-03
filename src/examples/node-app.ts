@@ -5,8 +5,11 @@ import { UnnboundLogger } from '../index';
 const logger = new UnnboundLogger();
 const app = express();
 
-// Add the trace middleware
-// app.use(traceMiddleware);
+// Add the trace middleware using the logger's traceMiddleware property
+app.use(logger.traceMiddleware);
+
+// Add Axios trace middleware
+axios.interceptors.request.use(logger.axiosTraceMiddleware.onFulfilled, logger.axiosTraceMiddleware.onRejected);
 
 // Example route
 app.get('/api/example', async (req, res) => {

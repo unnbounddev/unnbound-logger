@@ -19,6 +19,10 @@ import {
 } from './types';
 import { generateUuid, generateTimestamp, getTraceId } from './utils/id-generator';
 import { WinstonAdapter } from './adapters/winston-adapter';
+import { Request, Response, NextFunction } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { traceContext } from './utils/trace-context';
+import { InternalAxiosRequestConfig, AxiosHeaders } from 'axios';
 
 /**
  * UnnboundLogger provides typed, structured logging
@@ -28,6 +32,7 @@ export class UnnboundLogger {
   private defaultLevel: LogLevel;
   private serviceName?: string;
   private environment?: string;
+  private traceHeaderKey: string;
 
   /**
    * Creates a new UnnboundLogger instance
@@ -37,6 +42,7 @@ export class UnnboundLogger {
     this.defaultLevel = options.defaultLevel || 'info';
     this.serviceName = options.serviceName;
     this.environment = options.environment;
+    this.traceHeaderKey = options.traceHeaderKey || 'unnbound-trace-id';
 
     if (options.engine) {
       this.engine = options.engine;
@@ -264,4 +270,34 @@ export class UnnboundLogger {
 
     this.engine.log(options.level || this.defaultLevel, '', { ...logEntry });
   }
+
+  // Public getter for traceHeaderKey
+  public getTraceHeaderKey(): string {
+    return this.traceHeaderKey;
+  }
+
+  // Trace middleware
+  public traceMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+    const traceId = req.header(this.traceHeaderKey) || uuidv4();
+    res.setHeader(this.traceHeaderKey, traceId);
+    traceContext.run(traceId, () => {
+      next();
+    });
+  };
+
+  // Axios trace middleware
+  public axiosTraceMiddleware = {
+    onFulfilled: (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
+      const traceId = traceContext.getTraceId();
+      if (traceId) {
+        const headers = new AxiosHeaders(config.headers);
+        headers.set(this.traceHeaderKey, traceId);
+        config.headers = headers;
+      }
+      return config;
+    },
+    onRejected: (error: any): any => {
+      return Promise.reject(error);
+    }
+  };
 }
