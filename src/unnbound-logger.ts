@@ -174,6 +174,30 @@ export class UnnboundLogger {
     const requestId = options.requestId || generateUuid();
     const startTime = options.startTime || Date.now();
 
+    // Store request metadata in res.locals for later use
+    if (req.res) {
+      req.res.locals.requestId = requestId;
+      req.res.locals.startTime = startTime;
+      req.res.locals.workflowId = workflowId;
+      req.res.locals.traceId = traceId;
+    }
+
+    // Extract request details
+    const requestDetails = {
+      method: req.method as HttpMethod,
+      url: req.originalUrl || req.url,
+      protocol: req.protocol,
+      hostname: req.hostname,
+      ip: req.ip,
+      body: req.body,
+      query: req.query,
+      params: req.params,
+      headers: this.sanitizeHeaders(req.headers),
+      cookies: req.cookies,
+      userAgent: req.get('user-agent'),
+      referer: req.get('referer'),
+    };
+
     const logEntry: HttpRequestLogEntry = {
       logId: generateUuid(),
       timestamp: generateTimestamp(),
@@ -182,14 +206,9 @@ export class UnnboundLogger {
       workflowId,
       logLevel: options.level || this.defaultLevel,
       logType: 'httpRequest',
-      method: req.method as HttpMethod,
-      url: req.originalUrl || req.url,
-      message: {
-        body: req.body,
-        query: req.query,
-        params: req.params,
-        headers: req.headers,
-      },
+      method: requestDetails.method,
+      url: requestDetails.url,
+      message: requestDetails,
       responseStatusCode: null,
       filePath: null,
       fileName: null,
@@ -208,10 +227,11 @@ export class UnnboundLogger {
    * @param options - Additional logging options
    */
   httpResponse(res: Response, req: Request, options: HttpResponseLogOptions = {}): void {
-    const workflowId = options.workflowId || generateUuid();
-    const traceId = options.traceId || getTraceId(workflowId);
-    const requestId = options.requestId || generateUuid();
-    const startTime = options.startTime || Date.now();
+    // Get stored metadata from res.locals or use provided options
+    const requestId = res.locals.requestId || options.requestId || generateUuid();
+    const startTime = res.locals.startTime || options.startTime || Date.now();
+    const workflowId = res.locals.workflowId || options.workflowId || generateUuid();
+    const traceId = res.locals.traceId || options.traceId || getTraceId(workflowId);
     const duration = options.duration || (Date.now() - startTime);
 
     // Determine log level based on status code
@@ -226,6 +246,18 @@ export class UnnboundLogger {
       }
     }
 
+    // Extract response details
+    const responseDetails = {
+      statusCode: res.statusCode,
+      statusMessage: res.statusMessage,
+      headers: this.sanitizeHeaders(res.getHeaders()),
+      body: res.locals.body,
+      cookies: res.get('set-cookie'),
+      contentLength: res.get('content-length'),
+      contentType: res.get('content-type'),
+      duration,
+    };
+
     const logEntry: HttpResponseLogEntry = {
       logId: generateUuid(),
       timestamp: generateTimestamp(),
@@ -237,10 +269,7 @@ export class UnnboundLogger {
       method: req.method as HttpMethod,
       url: req.originalUrl || req.url,
       responseStatusCode: res.statusCode,
-      message: {
-        body: res.locals.body, // Assuming response body is stored in res.locals
-        headers: res.getHeaders(),
-      },
+      message: responseDetails,
       duration,
       filePath: null,
       fileName: null,
@@ -248,6 +277,31 @@ export class UnnboundLogger {
     };
 
     this.engine.log(level, '', { ...logEntry });
+  }
+
+  /**
+   * Sanitizes headers by removing sensitive information
+   * @param headers - Headers to sanitize
+   * @returns Sanitized headers
+   */
+  private sanitizeHeaders(headers: Record<string, any>): Record<string, any> {
+    const sensitiveHeaders = [
+      'authorization',
+      'cookie',
+      'set-cookie',
+      'x-api-key',
+      'x-auth-token',
+      'x-csrf-token',
+    ];
+
+    const sanitized = { ...headers };
+    for (const header of sensitiveHeaders) {
+      if (header in sanitized) {
+        sanitized[header] = '[REDACTED]';
+      }
+    }
+
+    return sanitized;
   }
 
   /**
