@@ -1,31 +1,34 @@
 /**
  * Core logger implementation
  */
-import { Logger as WinstonLogger } from 'winston';
+import pino from 'pino';
 import {
   LogLevel,
   LoggerOptions,
   GeneralLogOptions,
   HttpRequestLogOptions,
   HttpResponseLogOptions,
-  HttpMethod,
-  GeneralLogEntry,
-  HttpRequestLogEntry,
-  HttpResponseLogEntry,
-  LoggingEngine,
+  SftpTransactionLogOptions,
+  DbQueryTransactionLogOptions,
+  Log,
+  HttpRequestLog,
+  HttpResponseLog,
+  SftpTransactionLog,
+  DbQueryTransactionLog,
+  SerializableError,
 } from './types';
-import { generateUuid, generateTimestamp, getTraceId } from './utils/id-generator';
-import { WinstonAdapter } from './adapters/winston-adapter';
+import { generateUuid } from './utils/id-generator';
+import { filterHeaders } from './utils/logger-utils';
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { traceContext } from './utils/trace-context';
 import { InternalAxiosRequestConfig, AxiosHeaders } from 'axios';
 
 /**
- * UnnboundLogger provides typed, structured logging
+ * UnnboundLogger provides typed, structured logging using Pino
  */
 export class UnnboundLogger {
-  private engine: LoggingEngine;
+  private logger: pino.Logger;
   private defaultLevel: LogLevel;
   private serviceName?: string;
   private environment?: string;
@@ -45,17 +48,20 @@ export class UnnboundLogger {
     this.ignoreTraceRoutes = options.ignoreTraceRoutes || [];
     this.ignoreAxiosTraceRoutes = options.ignoreAxiosTraceRoutes || [];
 
-    if (options.engine) {
-      this.engine = options.engine;
-    } else {
-      // Create a default Winston adapter
-      this.engine = new WinstonAdapter({
-        level: this.defaultLevel,
-        transports: options.transports,
-        serviceName: this.serviceName,
-        environment: this.environment,
-      });
-    }
+    // Create Pino logger
+    this.logger = pino({
+      level: this.defaultLevel,
+      base: {
+        ...(this.serviceName && { service: this.serviceName }),
+        ...(this.environment && { environment: this.environment }),
+      },
+      formatters: {
+        level: (label) => {
+          return { level: label };
+        },
+      },
+      timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
+    });
   }
 
   /**
@@ -84,31 +90,49 @@ export class UnnboundLogger {
    */
   log(
     level: LogLevel,
-    message: string | Record<string, unknown>,
+    message: string | Error | Record<string, unknown>,
     options: GeneralLogOptions = {}
   ): void {
-    const workflowId = options.workflowId || generateUuid();
-    const traceId = options.traceId || getTraceId(workflowId);
+    const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
+    const requestId = options.requestId || generateUuid();
 
-    const logEntry: GeneralLogEntry = {
-      logId: generateUuid(),
-      timestamp: generateTimestamp(),
-      traceId,
-      workflowId,
-      logLevel: level,
-      logType: 'general',
-      message,
-      method: null,
-      url: null,
-      requestId: null,
-      responseStatusCode: null,
-      filePath: null,
-      fileName: null,
-      fileSize: null,
-      duration: null,
-    };
+    let logEntry: Log<'general'>;
+    let error: SerializableError | undefined;
 
-    this.engine.log(level, '', { ...logEntry });
+    if (message instanceof Error) {
+      error = {
+        name: message.name,
+        message: message.message,
+        stack: message.stack,
+      };
+      logEntry = {
+        level,
+        type: 'general',
+        message: message.message,
+        traceId,
+        requestId,
+        error,
+      };
+    } else if (typeof message === 'string') {
+      logEntry = {
+        level,
+        type: 'general',
+        message,
+        traceId,
+        requestId,
+      };
+    } else {
+      // If message is an object, stringify it
+      logEntry = {
+        level,
+        type: 'general',
+        message: JSON.stringify(message),
+        traceId,
+        requestId,
+      };
+    }
+
+    this.logger[level](logEntry);
   }
 
   /**
@@ -117,19 +141,7 @@ export class UnnboundLogger {
    * @param options - Additional logging options
    */
   error(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): void {
-    let logMessage: string | Record<string, unknown>;
-
-    if (message instanceof Error) {
-      logMessage = {
-        message: message.message,
-        stack: message.stack,
-        name: message.name,
-      };
-    } else {
-      logMessage = message;
-    }
-
-    this.log('error', logMessage, options);
+    this.log('error', message, options);
   }
 
   /**
@@ -137,7 +149,7 @@ export class UnnboundLogger {
    * @param message - Warning message
    * @param options - Additional logging options
    */
-  warn(message: string | Record<string, unknown>, options: GeneralLogOptions = {}): void {
+  warn(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): void {
     this.log('warn', message, options);
   }
 
@@ -146,7 +158,7 @@ export class UnnboundLogger {
    * @param message - Info message
    * @param options - Additional logging options
    */
-  info(message: string | Record<string, unknown>, options: GeneralLogOptions = {}): void {
+  info(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): void {
     this.log('info', message, options);
   }
 
@@ -155,7 +167,7 @@ export class UnnboundLogger {
    * @param message - Debug message
    * @param options - Additional logging options
    */
-  debug(message: string | Record<string, unknown>, options: GeneralLogOptions = {}): void {
+  debug(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): void {
     this.log('debug', message, options);
   }
 
@@ -166,8 +178,7 @@ export class UnnboundLogger {
    * @returns The request ID for correlating with the response
    */
   httpRequest(req: Request, options: HttpRequestLogOptions = {}): string {
-    const workflowId = options.workflowId || generateUuid();
-    const traceId = options.traceId || getTraceId(workflowId);
+    const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
     const requestId = options.requestId || generateUuid();
     const startTime = options.startTime || Date.now();
 
@@ -175,45 +186,26 @@ export class UnnboundLogger {
     if (req.res) {
       req.res.locals.requestId = requestId;
       req.res.locals.startTime = startTime;
-      req.res.locals.workflowId = workflowId;
       req.res.locals.traceId = traceId;
     }
 
-    // Extract request details
-    const requestDetails = {
-      method: req.method as HttpMethod,
-      url: req.originalUrl || req.url,
-      protocol: req.protocol,
-      hostname: req.hostname,
-      ip: req.ip,
-      body: req.body,
-      query: req.query,
-      params: req.params,
-      headers: this.sanitizeHeaders(req.headers),
-      cookies: req.cookies,
-      userAgent: req.get('user-agent'),
-      referer: req.get('referer'),
-    };
-
-    const logEntry: HttpRequestLogEntry = {
-      logId: generateUuid(),
-      timestamp: generateTimestamp(),
-      requestId,
+    const logEntry: HttpRequestLog = {
+      level: options.level || this.defaultLevel,
+      type: 'httpRequest',
+      message: `${req.method} ${req.originalUrl || req.url}`,
       traceId,
-      workflowId,
-      logLevel: options.level || this.defaultLevel,
-      logType: 'httpRequest',
-      method: requestDetails.method,
-      url: requestDetails.url,
-      message: requestDetails,
-      responseStatusCode: null,
-      filePath: null,
-      fileName: null,
-      fileSize: null,
-      duration: null,
+      requestId,
+      duration: 0, // Will be updated in response
+      httpRequest: {
+        url: req.originalUrl || req.url,
+        method: req.method,
+        headers: filterHeaders(req.headers),
+        ip: req.ip,
+        body: req.body,
+      },
     };
 
-    this.engine.log(options.level || this.defaultLevel, '', { ...logEntry });
+    this.logger[options.level || this.defaultLevel](logEntry);
     return requestId;
   }
 
@@ -224,11 +216,9 @@ export class UnnboundLogger {
    * @param options - Additional logging options
    */
   httpResponse(res: Response, req: Request, options: HttpResponseLogOptions = {}): void {
-    // Get stored metadata from res.locals or use provided options
     const requestId = res.locals.requestId || options.requestId || generateUuid();
     const startTime = res.locals.startTime || options.startTime || Date.now();
-    const workflowId = res.locals.workflowId || options.workflowId || generateUuid();
-    const traceId = res.locals.traceId || options.traceId || getTraceId(workflowId);
+    const traceId = res.locals.traceId || options.traceId || traceContext.getTraceId() || generateUuid();
     const duration = options.duration || (Date.now() - startTime);
 
     // Determine log level based on status code
@@ -243,67 +233,96 @@ export class UnnboundLogger {
       }
     }
 
-    // Extract response details
-    const responseDetails = {
-      statusCode: res.statusCode,
-      statusMessage: res.statusMessage,
-      headers: this.sanitizeHeaders(res.getHeaders()),
-      body: res.locals.body,
-      cookies: res.get('set-cookie'),
-      contentLength: res.get('content-length'),
-      contentType: res.get('content-type'),
-      duration,
-    };
-
-    const logEntry: HttpResponseLogEntry = {
-      logId: generateUuid(),
-      timestamp: generateTimestamp(),
-      requestId,
+    const logEntry: HttpResponseLog = {
+      level,
+      type: 'httpResponse',
+      message: `${req.method} ${req.originalUrl || req.url} - ${res.statusCode}`,
       traceId,
-      workflowId,
-      logLevel: level,
-      logType: 'httpResponse',
-      method: req.method as HttpMethod,
-      url: req.originalUrl || req.url,
-      responseStatusCode: res.statusCode,
-      message: responseDetails,
+      requestId,
       duration,
-      filePath: null,
-      fileName: null,
-      fileSize: null,
+      httpResponse: {
+        url: req.originalUrl || req.url,
+        method: req.method,
+        headers: filterHeaders(res.getHeaders()),
+        ip: req.ip,
+        status: res.statusCode,
+        body: res.locals.body,
+      },
     };
 
-    this.engine.log(level, '', { ...logEntry });
+    this.logger[level](logEntry);
   }
 
   /**
-   * Sanitizes headers by removing sensitive information
-   * @param headers - Headers to sanitize
-   * @returns Sanitized headers
+   * Logs an SFTP transaction
+   * @param operation - SFTP operation details
+   * @param options - Additional logging options
    */
-  private sanitizeHeaders(headers: Record<string, any>): Record<string, any> {
-    const sensitiveHeaders = [
-      'authorization',
-      'cookie',
-      'set-cookie',
-      'x-api-key',
-      'x-auth-token',
-      'x-csrf-token',
-    ];
+  sftpTransaction(
+    operation: {
+      host: string;
+      username: string;
+      operation: 'upload' | 'download' | 'list' | 'delete' | 'rename' | 'stat';
+      path: string;
+      status: 'success' | 'failure';
+      bytesTransferred?: number;
+      filesListed?: number;
+      sourcePath?: string;
+    },
+    options: SftpTransactionLogOptions = {}
+  ): void {
+    const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
+    const requestId = options.requestId || generateUuid();
+    const duration = options.duration || (options.startTime ? Date.now() - options.startTime : 0);
 
-    const sanitized = { ...headers };
-    for (const header of sensitiveHeaders) {
-      if (header in sanitized) {
-        sanitized[header] = '[REDACTED]';
-      }
-    }
+    const level: LogLevel = operation.status === 'success' ? 'info' : 'error';
 
-    return sanitized;
+    const logEntry: SftpTransactionLog = {
+      level,
+      type: 'sftpTransaction',
+      message: `SFTP ${operation.operation} ${operation.status} - ${operation.path}`,
+      traceId,
+      requestId,
+      duration,
+      sftp: operation,
+    };
+
+    this.logger[level](logEntry);
   }
 
-  // Public getter for traceHeaderKey
-  public getTraceHeaderKey(): string {
-    return this.traceHeaderKey;
+  /**
+   * Logs a database query transaction
+   * @param query - Database query details
+   * @param options - Additional logging options
+   */
+  dbQueryTransaction(
+    query: {
+      instance: string;
+      vendor: 'postgres' | 'mysql' | 'mssql' | 'mongodb';
+      query?: string;
+      status: 'success' | 'failure';
+      rowsReturned?: number;
+      rowsAffected?: number;
+    },
+    options: DbQueryTransactionLogOptions = {}
+  ): void {
+    const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
+    const requestId = options.requestId || generateUuid();
+    const duration = options.duration || (options.startTime ? Date.now() - options.startTime : 0);
+
+    const level: LogLevel = query.status === 'success' ? 'info' : 'error';
+
+    const logEntry: DbQueryTransactionLog = {
+      level,
+      type: 'dbQueryTransaction',
+      message: `DB Query ${query.status} - ${query.vendor}`,
+      traceId,
+      requestId,
+      duration,
+      db: query,
+    };
+
+    this.logger[level](logEntry);
   }
 
   // Trace middleware

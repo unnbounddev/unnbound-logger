@@ -1,6 +1,6 @@
 # Unnbound Logger
 
-A structured logging library with TypeScript support. Provides consistent, well-typed logging across different operational contexts. All logs are output in JSON format for better machine readability and parsing.
+A structured logging library with TypeScript support built on Pino. Provides consistent, well-typed logging across different operational contexts. All logs are output in JSON format for better machine readability and parsing.
 
 ## Installation
 
@@ -42,27 +42,23 @@ logger.info(
 );
 ```
 
-## Using Different Logging Engines
+## Log Format
 
-Unnbound Logger supports multiple logging engines through adapters. By default, it uses Winston, but you can use other logging libraries like Pino. All logs are output in JSON format regardless of the engine used:
+All logs follow a standardized format:
 
 ```typescript
-import { UnnboundLogger } from 'unnbound-logger';
-import { PinoAdapter } from 'unnbound-logger/adapters';
+interface Log<T extends LogType = 'general'> {
+  level: LogLevel; // "info" | "debug" | "error" | "warn"
+  type: T; // "general" | "httpRequest" | "httpResponse" | "sftpTransaction" | "dbQueryTransaction"
+  message: string;
+  traceId: string;
+  requestId: string;
+  error?: SerializableError; // Only present for Error objects
+}
 
-// Create a logger with Pino
-const logger = new UnnboundLogger({
-  engine: new PinoAdapter({
-    level: 'info',
-    serviceName: 'my-service',
-    environment: 'development'
-  })
-});
-
-// Use the logger with both string and object messages
-logger.info('Application started');
-logger.info({ event: 'startup', version: '1.0.0' });
-logger.info('User action', { userId: '123', action: 'login' });
+interface LogTransaction<T extends LogType> extends Log<T> {
+  duration: number; // Duration in milliseconds
+}
 ```
 
 ## HTTP Request/Response Logging
@@ -103,10 +99,71 @@ app.post('/api/users', (req, res) => {
 ```
 
 The logger automatically captures:
-- Request method, URL, body, query parameters, and headers
-- Response status code, body, and headers
+- Request method, URL, body, and headers (filtered for security)
+- Response status code, body, and headers (filtered for security)
 - Request duration
-- Trace ID and workflow ID (if configured)
+- Trace ID and request ID for correlation
+
+## SFTP Transaction Logging
+
+For logging SFTP operations:
+
+```typescript
+import { UnnboundLogger } from 'unnbound-logger';
+
+const logger = new UnnboundLogger();
+
+// Log an SFTP upload
+logger.sftpTransaction({
+  host: 'sftp.example.com',
+  username: 'ftpuser',
+  operation: 'upload',
+  path: '/uploads/file.txt',
+  status: 'success',
+  bytesTransferred: 1024
+});
+
+// Log an SFTP download with failure
+logger.sftpTransaction({
+  host: 'sftp.example.com',
+  username: 'ftpuser',
+  operation: 'download',
+  path: '/downloads/file.txt',
+  status: 'failure'
+}, {
+  startTime: Date.now() - 5000 // Started 5 seconds ago
+});
+```
+
+## Database Query Transaction Logging
+
+For logging database operations:
+
+```typescript
+import { UnnboundLogger } from 'unnbound-logger';
+
+const logger = new UnnboundLogger();
+
+// Log a successful database query
+logger.dbQueryTransaction({
+  instance: 'localhost:5432',
+  vendor: 'postgres',
+  query: 'SELECT * FROM users WHERE active = true',
+  status: 'success',
+  rowsReturned: 150
+});
+
+// Log a failed database operation
+logger.dbQueryTransaction({
+  instance: 'prod-db-cluster',
+  vendor: 'mysql',
+  query: 'UPDATE users SET last_login = NOW()',
+  status: 'failure',
+  rowsAffected: 0
+}, {
+  duration: 2500 // Operation took 2.5 seconds
+});
+```
 
 ## Middleware Usage
 
@@ -230,99 +287,11 @@ await tracedOperation(42);
 > };
 > ```
 
-## Custom Configuration
-
-```typescript
-import { UnnboundLogger } from 'unnbound-logger';
-import winston from 'winston';
-
-// Using Winston
-const logger = new UnnboundLogger({
-  defaultLevel: 'debug',
-  serviceName: 'my-service',
-  environment: 'development',
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' }),
-  ],
-});
-
-// Using Pino
-import { PinoAdapter } from 'unnbound-logger/adapters';
-const pinoLogger = new UnnboundLogger({
-  engine: new PinoAdapter({
-    level: 'debug',
-    serviceName: 'my-service',
-    environment: 'development'
-  })
-});
-
-// Configure route filtering for trace middleware
-const loggerWithRouteFiltering = new UnnboundLogger({
-  // Routes to ignore in trace middleware (supports glob patterns)
-  ignoreTraceRoutes: [
-    '/health',           // Ignore exact path
-    '/metrics/*',        // Ignore all paths under metrics
-    '/static/*.js',      // Ignore all JS files in static directory
-    '/api/v1/status'     // Ignore specific API endpoint
-  ],
-  // Routes to ignore in axios trace middleware (supports glob patterns)
-  ignoreAxiosTraceRoutes: [
-    'https://api.example.com/health',  // Ignore specific external API
-    'https://metrics.*.com/*'          // Ignore all metrics endpoints
-  ]
-});
-```
-
-The route filtering options support glob patterns:
-- `*` matches any sequence of characters
-- `?` matches any single character
-- `.` matches literal dots
-- Patterns are matched against the full path/URL
-
-## Creating Custom Logging Engines
-
-You can create your own logging engine by implementing the `LoggingEngine` interface. All logs must be output in JSON format and support both string and object messages:
-
-```typescript
-import { LoggingEngine, LogLevel } from 'unnbound-logger';
-
-class CustomLoggingEngine implements LoggingEngine {
-  log(level: LogLevel, message: string | Record<string, unknown>, meta: Record<string, unknown>): void {
-    // Implement your logging logic
-    // Must output logs in JSON format
-    // Must handle both string and object messages
-  }
-
-  error(message: string | Record<string, unknown>, meta: Record<string, unknown>): void {
-    this.log('error', message, meta);
-  }
-
-  warn(message: string | Record<string, unknown>, meta: Record<string, unknown>): void {
-    this.log('warn', message, meta);
-  }
-
-  info(message: string | Record<string, unknown>, meta: Record<string, unknown>): void {
-    this.log('info', message, meta);
-  }
-
-  debug(message: string | Record<string, unknown>, meta: Record<string, unknown>): void {
-    this.log('debug', message, meta);
-  }
-}
-
-// Use your custom engine
-const logger = new UnnboundLogger({
-  engine: new CustomLoggingEngine()
-});
-```
-
 ## API Reference
 
 ### UnnboundLogger
 
-The main logger class that provides all logging functionality.
+The main logger class that provides all logging functionality using Pino.
 
 #### Constructor
 
@@ -332,10 +301,12 @@ new UnnboundLogger(options?: LoggerOptions)
 
 #### Methods
 
-- `log(level: LogLevel, message: string | Record<string, unknown>, options?: GeneralLogOptions): void`
+- `log(level: LogLevel, message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
 - `error(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
-- `warn(message: string | Record<string, unknown>, options?: GeneralLogOptions): void`
-- `info(message: string | Record<string, unknown>, options?: GeneralLogOptions): void`
-- `debug(message: string | Record<string, unknown>, options?: GeneralLogOptions): void`
-- `httpRequest(method: HttpMethod, url: string, body?: Record<string, unknown>, options?: HttpRequestLogOptions): string`
-- `httpResponse(method: HttpMethod, url: string, statusCode: number, body?: Record<string, unknown>, options: HttpResponseLogOptions): void`
+- `warn(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
+- `info(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
+- `debug(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
+- `httpRequest(req: Request, options?: HttpRequestLogOptions): string`
+- `httpResponse(res: Response, req: Request, options: HttpResponseLogOptions): void`
+- `sftpTransaction(operation: SftpOperation, options?: SftpTransactionLogOptions): void`
+- `dbQueryTransaction(query: DbQuery, options?: DbQueryTransactionLogOptions): void`

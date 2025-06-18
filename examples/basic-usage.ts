@@ -1,12 +1,12 @@
 /* eslint-disable no-console */
 /**
- * Basic usage examples for the logger
+ * Basic usage examples for the logger with new log format
  */
 import { UnnboundLogger, generateUuid } from '../src/index';
 import { Request, Response } from 'express';
 
 /**
- * Demonstrates basic usage of the structured logger
+ * Demonstrates basic usage of the structured logger with new format
  */
 function basicLoggingExample(): void {
   console.log('=== Basic Logging Example ===');
@@ -20,91 +20,163 @@ function basicLoggingExample(): void {
   logger.error('This is an error message');
   logger.debug('This is a debug message');
 
+  // Logging with Error objects
+  const error = new Error('Sample error for demonstration');
+  logger.error(error);
+
   // Logging with structured data
-  logger.info({
-    event: 'user_login',
+  logger.info('User login event', {
     userId: '123',
     timestamp: new Date().toISOString(),
   });
-
-  // Logging with workflow tracking
-  const workflowId = generateUuid();
-  logger.info('Starting workflow', { workflowId });
-  logger.info('Processing step 1', { workflowId });
-  logger.info('Processing step 2', { workflowId });
-  logger.info('Workflow completed', { workflowId });
-
-  // HTTP request/response logging
-  const mockReq = {
-    method: 'POST',
-    url: 'https://api.example.com/users',
-    body: { name: 'John Doe', email: 'john@example.com' },
-  } as Request;
-
-  const mockRes = {
-    statusCode: 201,
-    locals: {},
-  } as Response;
-
-  const requestId = logger.httpRequest(mockReq);
-  logger.httpResponse(mockRes, mockReq, { requestId, duration: 150 });
 
   console.log('\n');
 }
 
 /**
- * Demonstrates HTTP request/response logging
+ * Demonstrates HTTP request/response logging with new format
  */
 function httpLoggingExample(): void {
   console.log('=== HTTP Logging Example ===');
 
   const logger = new UnnboundLogger();
-  const workflowId = generateUuid();
 
   // Log HTTP request
   const mockReq = {
     method: 'POST',
     url: 'https://api.example.com/users',
+    originalUrl: 'https://api.example.com/users',
     body: { name: 'John Doe', email: 'john@example.com' },
+    headers: { 'content-type': 'application/json' },
+    ip: '192.168.1.100',
   } as Request;
 
   const mockRes = {
     statusCode: 201,
     locals: {},
-  } as Response;
+    getHeaders: () => ({ 'content-type': 'application/json' }),
+    get: () => undefined,
+  } as unknown as Response;
 
-  const requestId = logger.httpRequest(mockReq, { workflowId });
-  logger.httpResponse(mockRes, mockReq, { requestId, workflowId, duration: 150 });
+  const requestId = logger.httpRequest(mockReq);
+  logger.httpResponse(mockRes, mockReq, { requestId, duration: 150 });
 
   // Log HTTP request that will fail
   const errorReq = {
     method: 'GET',
     url: 'https://api.example.com/invalid',
+    originalUrl: 'https://api.example.com/invalid',
+    headers: {},
+    ip: '192.168.1.100',
   } as Request;
 
   const errorRes = {
     statusCode: 404,
     locals: {},
-  } as Response;
+    getHeaders: () => ({}),
+    get: () => undefined,
+  } as unknown as Response;
 
-  const errorRequestId = logger.httpRequest(errorReq, { workflowId });
-  logger.httpResponse(errorRes, errorReq, { requestId: errorRequestId, workflowId, duration: 90 });
+  const errorRequestId = logger.httpRequest(errorReq);
+  logger.httpResponse(errorRes, errorReq, { requestId: errorRequestId, duration: 90 });
 
   console.log('\n');
 }
 
 /**
- * Demonstrates workflow tracking
+ * Demonstrates SFTP transaction logging
  */
-function workflowExample(): void {
-  console.log('=== Workflow Example ===');
+function sftpLoggingExample(): void {
+  console.log('=== SFTP Transaction Example ===');
 
   const logger = new UnnboundLogger();
-  const workflowId = generateUuid();
 
-  // Start a business process
+  // Log successful SFTP upload
+  logger.sftpTransaction({
+    host: 'sftp.example.com',
+    username: 'ftpuser',
+    operation: 'upload',
+    path: '/uploads/document.pdf',
+    status: 'success',
+    bytesTransferred: 2048576 // 2MB
+  });
+
+  // Log failed SFTP download
+  logger.sftpTransaction({
+    host: 'sftp.example.com',
+    username: 'ftpuser',
+    operation: 'download',
+    path: '/downloads/missing-file.txt',
+    status: 'failure'
+  }, {
+    startTime: Date.now() - 5000 // Started 5 seconds ago
+  });
+
+  // Log SFTP list operation
+  logger.sftpTransaction({
+    host: 'sftp.example.com',
+    username: 'ftpuser',
+    operation: 'list',
+    path: '/incoming',
+    status: 'success',
+    filesListed: 15
+  });
+
+  console.log('\n');
+}
+
+/**
+ * Demonstrates database query transaction logging
+ */
+function dbLoggingExample(): void {
+  console.log('=== Database Query Transaction Example ===');
+
+  const logger = new UnnboundLogger();
+
+  // Log successful SELECT query
+  logger.dbQueryTransaction({
+    instance: 'prod-postgres-01:5432',
+    vendor: 'postgres',
+    query: 'SELECT * FROM users WHERE active = true',
+    status: 'success',
+    rowsReturned: 250
+  });
+
+  // Log successful UPDATE query
+  logger.dbQueryTransaction({
+    instance: 'prod-postgres-01:5432',
+    vendor: 'postgres',
+    query: 'UPDATE users SET last_login = NOW() WHERE id = $1',
+    status: 'success',
+    rowsAffected: 1
+  }, {
+    duration: 45 // Query took 45ms
+  });
+
+  // Log failed query
+  logger.dbQueryTransaction({
+    instance: 'prod-mysql-cluster',
+    vendor: 'mysql',
+    query: 'SELECT * FROM non_existent_table',
+    status: 'failure',
+    rowsReturned: 0
+  });
+
+  console.log('\n');
+}
+
+/**
+ * Demonstrates trace ID consistency
+ */
+function traceExample(): void {
+  console.log('=== Trace ID Example ===');
+
+  const logger = new UnnboundLogger();
+  const customTraceId = generateUuid();
+
+  // All logs with the same trace ID
   logger.info('Order processing started', {
-    workflowId,
+    traceId: customTraceId,
     orderId: 'ORD-12345',
   });
 
@@ -112,29 +184,42 @@ function workflowExample(): void {
   const paymentReq = {
     method: 'POST',
     url: 'https://api.payments.example.com/process',
+    originalUrl: 'https://api.payments.example.com/process',
     body: { orderId: 'ORD-12345', amount: 99.99 },
+    headers: { 'content-type': 'application/json' },
+    ip: '10.0.1.50',
   } as Request;
 
   const paymentRes = {
     statusCode: 200,
     locals: {},
-  } as Response;
+    getHeaders: () => ({ 'content-type': 'application/json' }),
+    get: () => undefined,
+  } as unknown as Response;
 
-  const paymentRequestId = logger.httpRequest(paymentReq, { workflowId });
-  logger.httpResponse(paymentRes, paymentReq, { requestId: paymentRequestId, workflowId, duration: 300 });
+  const paymentRequestId = logger.httpRequest(paymentReq, { traceId: customTraceId });
+  logger.httpResponse(paymentRes, paymentReq, {
+    requestId: paymentRequestId,
+    traceId: customTraceId,
+    duration: 300
+  });
 
-  // Log fulfillment step
-  logger.info('Order fulfillment initiated', {
-    workflowId,
-    orderId: 'ORD-12345',
-    warehouseId: 'WH-5',
+  // Log database operation
+  logger.dbQueryTransaction({
+    instance: 'orders-db:5432',
+    vendor: 'postgres',
+    query: 'UPDATE orders SET status = $1 WHERE id = $2',
+    status: 'success',
+    rowsAffected: 1
+  }, {
+    traceId: customTraceId
   });
 
   // Complete the workflow
   logger.info('Order processing completed successfully', {
-    workflowId,
+    traceId: customTraceId,
     orderId: 'ORD-12345',
-    processingTime: '45s',
+    processingTime: '2.1s',
   });
 
   console.log('\n');
@@ -144,5 +229,7 @@ function workflowExample(): void {
 (function runExamples(): void {
   basicLoggingExample();
   httpLoggingExample();
-  workflowExample();
+  sftpLoggingExample();
+  dbLoggingExample();
+  traceExample();
 })();

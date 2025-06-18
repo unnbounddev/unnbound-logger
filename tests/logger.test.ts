@@ -1,5 +1,4 @@
 import { UnnboundLogger } from '../src';
-import winston from 'winston';
 import * as idGen from '../src/utils/id-generator';
 import { Request, Response } from 'express';
 
@@ -82,7 +81,7 @@ describe('UnnboundLogger', () => {
   beforeEach(() => {
     logger = new UnnboundLogger();
     // @ts-expect-error - accessing private property for testing
-    logSpy = jest.spyOn(logger.engine, 'log');
+    logSpy = jest.spyOn(logger.logger, 'info');
   });
 
   afterEach(() => {
@@ -92,48 +91,36 @@ describe('UnnboundLogger', () => {
   test('should log general messages', () => {
     logger.info('Test message');
 
-    expect(logSpy).toHaveBeenCalledWith(
-      'info',
-      '',
-      expect.objectContaining({
-        logId: 'test-uuid',
-        timestamp: '2025-01-01T12:00:00.000Z',
-        traceId: 'test-uuid',
-        workflowId: 'test-uuid',
-        logLevel: 'info',
-        logType: 'general',
-        message: 'Test message',
-        method: null,
-        url: null,
-        requestId: null,
-        responseStatusCode: null,
-        filePath: null,
-        fileName: null,
-        fileSize: null,
-        duration: null,
-      })
-    );
+    expect(logSpy).toHaveBeenCalled();
+    const logCall = logSpy.mock.calls[0];
+    expect(logCall[0]).toMatchObject({
+      level: 'info',
+      type: 'general',
+      message: 'Test message',
+      traceId: 'test-uuid',
+      requestId: 'test-uuid',
+    });
   });
 
   test('should log errors', () => {
+    const errorSpy = jest.spyOn(logger['logger'], 'error');
     const error = new Error('Test error');
     error.stack = 'Error: Test error\n    at test.ts:10:20';
 
     logger.error(error);
 
-    expect(logSpy).toHaveBeenCalledWith(
-      'error',
-      '',
-      expect.objectContaining({
-        logLevel: 'error',
-        logType: 'general',
-        message: {
-          message: 'Test error',
-          stack: 'Error: Test error\n    at test.ts:10:20',
-          name: 'Error',
-        },
-      })
-    );
+    expect(errorSpy).toHaveBeenCalled();
+    const logCall = errorSpy.mock.calls[0];
+    expect(logCall[0]).toMatchObject({
+      level: 'error',
+      type: 'general',
+      message: 'Test error',
+      error: {
+        name: 'Error',
+        message: 'Test error',
+        stack: 'Error: Test error\n    at test.ts:10:20',
+      },
+    });
   });
 
   test('should log HTTP requests', () => {
@@ -147,20 +134,21 @@ describe('UnnboundLogger', () => {
     const requestId = logger.httpRequest(mockReq);
 
     expect(requestId).toBe('test-uuid');
-    expect(logSpy).toHaveBeenCalledWith(
-      'info',
-      '',
-      expect.objectContaining({
-        logLevel: 'info',
-        logType: 'httpRequest',
-        method: 'GET',
+    expect(logSpy).toHaveBeenCalled();
+    const logCall = logSpy.mock.calls[0];
+    expect(logCall[0]).toMatchObject({
+      level: 'info',
+      type: 'httpRequest',
+      message: 'GET https://example.com/api',
+      requestId: 'test-uuid',
+      duration: 0,
+      httpRequest: {
         url: 'https://example.com/api',
-        requestId: 'test-uuid',
-        message: expect.objectContaining({
-          query: { test: 'test' }
-        }),
-      })
-    );
+        method: 'GET',
+        ip: '127.0.0.1',
+        body: {},
+      },
+    });
   });
 
   describe('HTTP Response Logging', () => {
@@ -178,19 +166,20 @@ describe('UnnboundLogger', () => {
       });
 
       logger.httpResponse(mockRes, mockReq, { duration: 100 });
-      expect(logSpy).toHaveBeenCalledWith(
-        'info',
-        '',
-        expect.objectContaining({
-          logLevel: 'info',
-          logType: 'httpResponse',
-          responseStatusCode: 200,
-          duration: 100
-        })
-      );
+      expect(logSpy).toHaveBeenCalled();
+      const logCall = logSpy.mock.calls[0];
+      expect(logCall[0]).toMatchObject({
+        level: 'info',
+        type: 'httpResponse',
+        duration: 100,
+        httpResponse: {
+          status: 200,
+        },
+      });
     });
 
     test('should set log level based on HTTP status code', () => {
+      const errorSpy = jest.spyOn(logger['logger'], 'error');
       const mockReq = createMockRequest({
         method: 'GET',
         url: 'https://example.com/api',
@@ -204,34 +193,36 @@ describe('UnnboundLogger', () => {
       });
 
       logger.httpResponse(mockRes, mockReq, { duration: 100 });
-      expect(logSpy).toHaveBeenCalledWith(
-        'error',
-        '',
-        expect.objectContaining({
-          logLevel: 'error',
-          logType: 'httpResponse',
-          responseStatusCode: 500,
-          duration: 100
-        })
-      );
+      expect(errorSpy).toHaveBeenCalled();
+      const logCall = errorSpy.mock.calls[0];
+      expect(logCall[0]).toMatchObject({
+        level: 'error',
+        type: 'httpResponse',
+        duration: 100,
+        httpResponse: {
+          status: 500,
+        },
+      });
     });
   });
 
-  test('should use workflow IDs for tracing', () => {
-    const workflowId = 'workflow-123';
+  test('should use trace IDs for tracing', () => {
+    const warnSpy = jest.spyOn(logger['logger'], 'warn');
 
-    logger.info('Start workflow', { workflowId });
-    logger.warn('Warning in workflow', { workflowId });
+    logger.info('Start workflow', { traceId: 'custom-trace-123' });
+    logger.warn('Warning in workflow', { traceId: 'custom-trace-123' });
 
-    expect(logSpy).toHaveBeenCalledTimes(2);
-    const calls = logSpy.mock.calls as Array<[string, string, Record<string, unknown>]>;
-    expect(calls[0][2]).toMatchObject({
-      workflowId: 'workflow-123',
-      traceId: 'test-uuid', // The traceId should be consistent
+    expect(logSpy).toHaveBeenCalledTimes(1); // Only info calls this spy
+    const infoCall = logSpy.mock.calls[0];
+    expect(infoCall[0]).toMatchObject({
+      traceId: 'custom-trace-123',
     });
-    expect(calls[1][2]).toMatchObject({
-      workflowId: 'workflow-123',
-      traceId: 'test-uuid', // The same traceId should be used
+
+    // Check warn call separately
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const warnCall = warnSpy.mock.calls[0];
+    expect(warnCall[0]).toMatchObject({
+      traceId: 'custom-trace-123',
     });
   });
 });

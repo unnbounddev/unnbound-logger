@@ -1,114 +1,89 @@
 /**
  * Type definitions for structured logging library
  */
-import { Logger as WinstonLogger } from 'winston';
 
 /**
  * Available log levels
  */
-export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+export type LogLevel = "info" | "debug" | "error" | "warn";
 
 /**
  * Available log types
  */
-export type LogType = 'general' | 'httpRequest' | 'httpResponse';
+export type LogType = "general" | "httpRequest" | "httpResponse" | "sftpTransaction" | "dbQueryTransaction";
 
 /**
  * HTTP methods supported for HTTP logging
  */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD';
 
-/**
- * Interface for logging engine implementations
- */
-export interface LoggingEngine {
-  log(level: LogLevel, message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
-  error(message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
-  warn(message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
-  info(message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
-  debug(message: string | Record<string, unknown>, meta: Record<string, unknown>): void;
+export interface SerializableError {
+  name: string;
+  message: string;
+  stack?: string;
 }
 
-/**
- * Base interface for all log entries
- */
-export interface BaseLogEntry {
-  /** Unique identifier for this log entry */
-  logId: string;
-  /** ISO timestamp when this log was created */
-  timestamp: string;
-  /** Trace ID for distributed tracing */
+export interface Log<T extends LogType = 'general'> {
+  level: LogLevel;
+  type: T;
+  message: string;
+  // serviceId: string; // To be added later
+  // workflowId: string; // Not added through the logger SDK but later from Cloudwatch
+  // deploymentId: string; // To be added later
   traceId: string;
-  /** Workflow ID for business process tracking */
-  workflowId: string;
-  /** Log severity level */
-  logLevel: LogLevel;
-  /** Type of log entry */
-  logType: LogType;
-  /** Log message content */
-  message: string | Record<string, unknown> | null;
-}
-
-/**
- * Interface for general logs
- */
-export interface GeneralLogEntry extends BaseLogEntry {
-  logType: 'general';
-  method: null;
-  url: null;
-  requestId: null;
-  responseStatusCode: null;
-  filePath: null;
-  fileName: null;
-  fileSize: null;
-  duration: null;
-}
-
-/**
- * Interface for HTTP request logs
- */
-export interface HttpRequestLogEntry extends BaseLogEntry {
-  logType: 'httpRequest';
-  /** Unique identifier for this HTTP request */
   requestId: string;
-  /** HTTP method used */
-  method: HttpMethod;
-  /** Request URL */
-  url: string;
-  responseStatusCode: null;
-  filePath: null;
-  fileName: null;
-  fileSize: null;
-  duration: null;
+  // spanId?: string; // To be added later
+  error?: SerializableError;
 }
 
-/**
- * Interface for HTTP response logs
- */
-export interface HttpResponseLogEntry extends BaseLogEntry {
-  logType: 'httpResponse';
-  /** Unique identifier for this HTTP request */
-  requestId: string;
-  /** HTTP method used */
-  method: HttpMethod;
-  /** Request URL */
-  url: string;
-  /** HTTP response status code */
-  responseStatusCode: number;
-  /** Duration of the request in milliseconds */
+export interface LogTransaction<T extends LogType> extends Log<T> {
   duration: number;
-  filePath: null;
-  fileName: null;
-  fileSize: null;
 }
 
-/**
- * Union type for all log entry types
- */
-export type LogEntry =
-  | GeneralLogEntry
-  | HttpRequestLogEntry
-  | HttpResponseLogEntry;
+export interface HttpRequestLog extends LogTransaction<'httpRequest'> {
+  httpRequest: {
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+    ip?: string;
+    body?: unknown;
+  };
+}
+
+export interface HttpResponseLog extends LogTransaction<'httpResponse'> {
+  httpResponse: {
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+    ip?: string;
+    status: number;
+    body?: unknown;
+  };
+}
+
+export interface SftpTransactionLog extends LogTransaction<'sftpTransaction'> {
+  sftp: {
+    host: string;
+    username: string;
+    operation: 'upload' | 'download' | 'list' | 'delete' | 'rename' | 'stat';
+    path: string;
+    status: 'success' | 'failure';
+    bytesTransferred?: number; // For upload/download
+    filesListed?: number;      // For list operations
+    sourcePath?: string;       // Specifically for 'rename' operations
+  };
+}
+
+export interface DbQueryTransactionLog extends LogTransaction<'dbQueryTransaction'> {
+  db: {
+    instance: string; // e.g., the DB host or a connection pool name
+    vendor: 'postgres' | 'mysql' | 'mssql' | 'mongodb';
+    query?: string; // sanitized query without password
+    status: 'success' | 'failure';
+    rowsReturned?: number;   // For SELECT statements
+    rowsAffected?: number;   // For INSERT, UPDATE, DELETE statements
+  };
+}
 
 /**
  * Configuration options for the logger
@@ -116,10 +91,6 @@ export type LogEntry =
 export interface LoggerOptions {
   /** Default log level */
   defaultLevel?: LogLevel;
-  /** Custom logging engine implementation */
-  engine?: LoggingEngine;
-  /** Additional transport configurations */
-  transports?: Array<WinstonLogger['transports'][number]>;
   /** Optional service name to include in logs */
   serviceName?: string;
   /** Optional environment name to include in logs */
@@ -140,8 +111,8 @@ export interface GeneralLogOptions {
   level?: LogLevel;
   /** Custom trace ID */
   traceId?: string;
-  /** Custom workflow ID */
-  workflowId?: string;
+  /** Custom request ID */
+  requestId?: string;
   /** Custom metadata */
   [key: string]: unknown;
 }
@@ -150,8 +121,6 @@ export interface GeneralLogOptions {
  * Options for HTTP request logs
  */
 export interface HttpRequestLogOptions extends GeneralLogOptions {
-  /** Custom request ID */
-  requestId?: string;
   /** Start time of the request for duration calculation */
   startTime?: number;
 }
@@ -161,5 +130,25 @@ export interface HttpRequestLogOptions extends GeneralLogOptions {
  */
 export interface HttpResponseLogOptions extends HttpRequestLogOptions {
   /** Duration of the request in milliseconds */
+  duration?: number;
+}
+
+/**
+ * Options for SFTP transaction logs
+ */
+export interface SftpTransactionLogOptions extends GeneralLogOptions {
+  /** Start time of the transaction for duration calculation */
+  startTime?: number;
+  /** Duration of the transaction in milliseconds */
+  duration?: number;
+}
+
+/**
+ * Options for database query transaction logs
+ */
+export interface DbQueryTransactionLogOptions extends GeneralLogOptions {
+  /** Start time of the query for duration calculation */
+  startTime?: number;
+  /** Duration of the query in milliseconds */
   duration?: number;
 }

@@ -1,10 +1,7 @@
 import { UnnboundLogger } from '../src';
-import winston from 'winston';
 import * as idGen from '../src/utils/id-generator';
 import * as index from '../src';
 import { Request, Response } from 'express';
-import { PinoAdapter } from '../src/adapters/pino-adapter';
-import { WinstonAdapter } from '../src/adapters/winston-adapter';
 import { AxiosHeaders, InternalAxiosRequestConfig } from 'axios';
 import { traceContext } from '../src/utils/trace-context';
 
@@ -66,62 +63,28 @@ function createMockResponse(overrides: Partial<Response> = {}): Response {
 }
 
 describe('Extra coverage for UnnboundLogger', () => {
-  test('should use a custom Winston logger', () => {
-    const customLogger = winston.createLogger({
-      transports: [new winston.transports.Console()]
-    });
-    const logger = new UnnboundLogger({ engine: customLogger });
-    expect(logger).toBeInstanceOf(UnnboundLogger);
-  });
-
-  test('should use simple and pretty log formats', () => {
+  test('should create logger with custom options', () => {
     const logger = new UnnboundLogger({
-      engine: new WinstonAdapter({
-        level: 'info',
-        serviceName: 'test-service',
-        environment: 'test'
-      })
+      defaultLevel: 'debug',
+      serviceName: 'test-service',
+      environment: 'test'
     });
-    // @ts-expect-error: access private property for test
-    const logSpy = jest.spyOn(logger.engine, 'log');
-
-    logger.info('Test message');
-    expect(logSpy).toHaveBeenCalledWith(
-      'info',
-      '',
-      expect.objectContaining({
-        logLevel: 'info',
-        logType: 'general',
-        message: 'Test message'
-      })
-    );
+    expect(logger).toBeInstanceOf(UnnboundLogger);
   });
 
   test('should handle error instanceof Error branch in error()', () => {
     const logger = new UnnboundLogger();
     // @ts-expect-error: access private property for test
-    const logSpy = jest.spyOn(logger.engine, 'log');
+    const logSpy = jest.spyOn(logger.logger, 'error');
     const err = new Error('Branch error');
     logger.error(err);
-    expect(logSpy).toHaveBeenCalledWith(
-      'error',
-      '',
-      expect.objectContaining({
-        logLevel: 'error',
-        logType: 'general',
-        message: expect.objectContaining({
-          message: 'Branch error',
-          stack: expect.any(String),
-          name: 'Error',
-        })
-      })
-    );
+    expect(logSpy).toHaveBeenCalled();
   });
 
   test('should use info level in httpResponse if no status code triggers warn/error', () => {
     const logger = new UnnboundLogger();
     // @ts-expect-error: access private property for test
-    const logSpy = jest.spyOn(logger.engine, 'log');
+    const logSpy = jest.spyOn(logger.logger, 'info');
 
     const mockReq = createMockRequest({
       method: 'GET',
@@ -136,16 +99,7 @@ describe('Extra coverage for UnnboundLogger', () => {
     });
 
     logger.httpResponse(mockRes, mockReq, { duration: 1 });
-    expect(logSpy).toHaveBeenCalledWith(
-      'info',
-      '',
-      expect.objectContaining({
-        logLevel: 'info',
-        logType: 'httpResponse',
-        responseStatusCode: 200,
-        duration: 1
-      })
-    );
+    expect(logSpy).toHaveBeenCalled();
   });
 
   test('should ignore paths based on patterns', () => {
@@ -235,184 +189,64 @@ describe('Extra coverage for UnnboundLogger', () => {
 
     return expect(logger.axiosTraceMiddleware.onRejected(error)).rejects.toThrow('Test error');
   });
-});
 
-describe('Logging Adapters', () => {
-  describe('PinoAdapter', () => {
-    test('should create a Pino adapter with default options', () => {
-      const adapter = new PinoAdapter();
-      expect(adapter).toBeInstanceOf(PinoAdapter);
+  test('should log SFTP transactions', () => {
+    const logger = new UnnboundLogger();
+    // @ts-expect-error: access private property for test
+    const logSpy = jest.spyOn(logger.logger, 'info');
+
+    logger.sftpTransaction({
+      host: 'example.com',
+      username: 'testuser',
+      operation: 'upload',
+      path: '/test/file.txt',
+      status: 'success',
+      bytesTransferred: 1024
     });
 
-    test('should create a Pino adapter with custom options', () => {
-      const adapter = new PinoAdapter({
-        level: 'debug',
-        serviceName: 'test-service',
-        environment: 'test',
-      });
-      expect(adapter).toBeInstanceOf(PinoAdapter);
-    });
-
-    test('should log messages with Pino adapter', () => {
-      const adapter = new PinoAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'info');
-
-      adapter.log('info', 'test message', { test: 'data' });
-      expect(logSpy).toHaveBeenCalled();
-    });
-
-    test('should handle different log levels with Pino adapter', () => {
-      const adapter = new PinoAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'error');
-
-      adapter.log('error', 'error message', { error: 'data' });
-      expect(logSpy).toHaveBeenCalled();
-    });
-
-    test('should format log level correctly', () => {
-      const adapter = new PinoAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'info');
-
-      adapter.log('info', 'test message', { test: 'data' });
-
-      expect(logSpy).toHaveBeenCalledWith(
-        { test: 'data' },
-        'test message'
-      );
-    });
-
-    test('should include timestamp in logs', () => {
-      const adapter = new PinoAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'info');
-
-      adapter.log('info', 'test message', { test: 'data' });
-
-      expect(logSpy).toHaveBeenCalledWith(
-        { test: 'data' },
-        'test message'
-      );
-    });
-
-    test('should include service name and environment in logs', () => {
-      const adapter = new PinoAdapter({
-        serviceName: 'test-service',
-        environment: 'test'
-      });
-      const logSpy = jest.spyOn(adapter['logger'], 'info');
-
-      adapter.log('info', 'test message', { test: 'data' });
-
-      expect(logSpy).toHaveBeenCalledWith(
-        { test: 'data' },
-        'test message'
-      );
-    });
-
-    test('should handle object messages', () => {
-      const adapter = new PinoAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'info');
-
-      adapter.log('info', { message: 'test message' }, { test: 'data' });
-
-      expect(logSpy).toHaveBeenCalledWith(
-        { message: 'test message', test: 'data' }
-      );
+    expect(logSpy).toHaveBeenCalled();
+    const logCall = logSpy.mock.calls[0];
+    expect(logCall[0]).toMatchObject({
+      level: 'info',
+      type: 'sftpTransaction',
+      message: 'SFTP upload success - /test/file.txt',
+      sftp: {
+        host: 'example.com',
+        username: 'testuser',
+        operation: 'upload',
+        path: '/test/file.txt',
+        status: 'success',
+        bytesTransferred: 1024
+      }
     });
   });
 
-  describe('WinstonAdapter', () => {
-    test('should create a Winston adapter with default options', () => {
-      const adapter = new WinstonAdapter();
-      expect(adapter).toBeInstanceOf(WinstonAdapter);
+  test('should log database query transactions', () => {
+    const logger = new UnnboundLogger();
+    // @ts-expect-error: access private property for test
+    const logSpy = jest.spyOn(logger.logger, 'info');
+
+    logger.dbQueryTransaction({
+      instance: 'localhost:5432',
+      vendor: 'postgres',
+      query: 'SELECT * FROM users',
+      status: 'success',
+      rowsReturned: 10
     });
 
-    test('should create a Winston adapter with custom options', () => {
-      const adapter = new WinstonAdapter({
-        level: 'debug',
-        serviceName: 'test-service',
-        environment: 'test',
-        transports: [new winston.transports.Console()],
-      });
-      expect(adapter).toBeInstanceOf(WinstonAdapter);
-    });
-
-    test('should log messages with Winston adapter', () => {
-      const adapter = new WinstonAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'log');
-
-      adapter.log('info', 'test message', { test: 'data' });
-      expect(logSpy).toHaveBeenCalled();
-    });
-
-    test('should handle different log levels with Winston adapter', () => {
-      const adapter = new WinstonAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'log');
-
-      adapter.log('error', 'error message', { error: 'data' });
-      expect(logSpy).toHaveBeenCalled();
-    });
-
-    test('should include trace ID in logs when available', () => {
-      const adapter = new WinstonAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'log');
-
-      // Set a trace ID in the context
-      traceContext.run('test-trace-id', () => {
-        adapter.log('info', 'test message', { test: 'data' });
-      });
-
-      expect(logSpy).toHaveBeenCalledWith(
-        'info',
-        'test message',
-        { test: 'data' }
-      );
-    });
-
-    test('should not include trace ID when not available', () => {
-      const adapter = new WinstonAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'log');
-
-      adapter.log('info', 'test message', { test: 'data' });
-
-      expect(logSpy).toHaveBeenCalledWith(
-        'info',
-        'test message',
-        expect.objectContaining({
-          test: 'data'
-        })
-      );
-      expect(logSpy).not.toHaveBeenCalledWith(
-        'info',
-        'test message',
-        expect.objectContaining({
-          traceId: expect.any(String)
-        })
-      );
-    });
-
-    test('should use custom transports', () => {
-      const customTransport = new winston.transports.Console();
-      const adapter = new WinstonAdapter({
-        transports: [customTransport]
-      });
-
-      expect(adapter['logger'].transports).toContain(customTransport);
-    });
-
-    test('should handle object messages', () => {
-      const adapter = new WinstonAdapter();
-      const logSpy = jest.spyOn(adapter['logger'], 'log');
-
-      adapter.log('info', { message: 'test message' }, { test: 'data' });
-
-      expect(logSpy).toHaveBeenCalledWith(
-        'info',
-        '',
-        expect.objectContaining({
-          message: 'test message',
-          test: 'data'
-        })
-      );
+    expect(logSpy).toHaveBeenCalled();
+    const logCall = logSpy.mock.calls[0];
+    expect(logCall[0]).toMatchObject({
+      level: 'info',
+      type: 'dbQueryTransaction',
+      message: 'DB Query success - postgres',
+      db: {
+        instance: 'localhost:5432',
+        vendor: 'postgres',
+        query: 'SELECT * FROM users',
+        status: 'success',
+        rowsReturned: 10
+      }
     });
   });
 });
@@ -448,5 +282,17 @@ describe('index default logger exports', () => {
 
     expect(() => index.httpRequest(mockReq)).not.toThrow();
     expect(() => index.httpResponse(mockRes, mockReq, { duration: 100 })).not.toThrow();
+    expect(() => index.sftpTransaction({
+      host: 'test.com',
+      username: 'test',
+      operation: 'upload',
+      path: '/test',
+      status: 'success'
+    })).not.toThrow();
+    expect(() => index.dbQueryTransaction({
+      instance: 'test',
+      vendor: 'postgres',
+      status: 'success'
+    })).not.toThrow();
   });
 });

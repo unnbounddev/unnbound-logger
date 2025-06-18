@@ -1,7 +1,7 @@
 {
   "name": "unnbound-logger",
   "version": "1.0.0",
-  "description": "A structured logging library with TypeScript support",
+  "description": "A structured logging library with TypeScript support using Pino",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -16,13 +16,13 @@
     "prepublishOnly": "npm run build",
     "check-coverage": "ts-node scripts/check-coverage.ts",
     "start:example:node-app": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' examples/node-app.ts",
-    "start:example:basic-usage": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' examples/basic-usage.ts",
-    "start:example:custom-configuration": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' examples/custom-configuration.ts"
+    "start:example:basic-usage": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' examples/basic-usage.ts"
   },
   "keywords": [
     "logging",
     "typescript",
-    "structured-logging"
+    "structured-logging",
+    "pino"
   ],
   "author": "",
   "license": "MIT",
@@ -32,8 +32,7 @@
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "pino": "^8.17.2",
-    "uuid": "^11.1.0",
-    "winston": "^3.11.0"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

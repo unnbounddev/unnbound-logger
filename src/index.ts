@@ -1,7 +1,7 @@
 /**
  * unnbound-logger
  *
- * A structured logging library built on top of Winston with TypeScript support.
+ * A structured logging library built on Pino with TypeScript support.
  * Provides consistent, well-typed logging across different operational contexts.
  */
 import { UnnboundLogger } from './unnbound-logger';
@@ -13,13 +13,17 @@ import {
   GeneralLogOptions,
   HttpRequestLogOptions,
   HttpResponseLogOptions,
-  BaseLogEntry,
-  GeneralLogEntry,
-  HttpRequestLogEntry,
-  HttpResponseLogEntry,
-  LogEntry,
+  SftpTransactionLogOptions,
+  DbQueryTransactionLogOptions,
+  Log,
+  LogTransaction,
+  HttpRequestLog,
+  HttpResponseLog,
+  SftpTransactionLog,
+  DbQueryTransactionLog,
+  SerializableError,
 } from './types';
-import { generateUuid, generateTimestamp, getTraceId, clearTraceId } from './utils/id-generator';
+import { generateUuid, clearTraceId } from './utils/id-generator';
 
 // Export everything needed for the library
 export {
@@ -34,16 +38,18 @@ export {
   GeneralLogOptions,
   HttpRequestLogOptions,
   HttpResponseLogOptions,
-  BaseLogEntry,
-  GeneralLogEntry,
-  HttpRequestLogEntry,
-  HttpResponseLogEntry,
-  LogEntry,
+  SftpTransactionLogOptions,
+  DbQueryTransactionLogOptions,
+  Log,
+  LogTransaction,
+  HttpRequestLog,
+  HttpResponseLog,
+  SftpTransactionLog,
+  DbQueryTransactionLog,
+  SerializableError,
 
   // Utils
   generateUuid,
-  generateTimestamp,
-  getTraceId,
   clearTraceId,
 };
 
@@ -59,6 +65,8 @@ export const info = defaultLogger.info.bind(defaultLogger);
 export const debug = defaultLogger.debug.bind(defaultLogger);
 export const httpRequest = defaultLogger.httpRequest.bind(defaultLogger);
 export const httpResponse = defaultLogger.httpResponse.bind(defaultLogger);
+export const sftpTransaction = defaultLogger.sftpTransaction.bind(defaultLogger);
+export const dbQueryTransaction = defaultLogger.dbQueryTransaction.bind(defaultLogger);
 
 // Default export is the UnnboundLogger class
 export default UnnboundLogger;
