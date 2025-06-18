@@ -23,11 +23,12 @@ import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { traceContext } from './utils/trace-context';
 import { InternalAxiosRequestConfig, AxiosHeaders } from 'axios';
+import { getStatusMessage } from './utils/http-status-messages';
 
 // Extend AxiosRequestConfig to include metadata
 declare module 'axios' {
   interface InternalAxiosRequestConfig {
-    metadata?: { startTime: number };
+    metadata?: { startTime: number; requestId?: string };
   }
 }
 
@@ -103,36 +104,45 @@ export class UnnboundLogger {
     const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
     const requestId = options.requestId || generateUuid();
 
-    let logEntry: Omit<Log<'general'>, 'level'>;
-    let error: SerializableError | undefined;
+    let logEntry: Omit<Log<'general'>, 'level'> & { [key: string]: any };
+
+    const {
+      traceId: optionTraceId,
+      requestId: optionRequestId,
+      ...restOptions
+    } = options;
 
     if (message instanceof Error) {
-      error = {
+      const error: SerializableError = {
         name: message.name,
         message: message.message,
         stack: message.stack,
       };
       logEntry = {
-        type: 'general',
-        message: message.message,
+        type: 'general' as const,
         traceId,
         requestId,
+        message: message.name,
         error,
+        ...restOptions,
       };
     } else if (typeof message === 'string') {
       logEntry = {
-        type: 'general',
-        message,
+        type: 'general' as const,
         traceId,
         requestId,
+        message,
+        ...restOptions,
       };
     } else {
-      // If message is an object, stringify it
+      // If message is an object, it's part of the log entry
       logEntry = {
-        type: 'general',
-        message: JSON.stringify(message),
+        type: 'general' as const,
         traceId,
         requestId,
+        ...(message as Record<string, unknown>),
+        message: (message as { message?: string }).message || 'Structured log data',
+        ...restOptions,
       };
     }
 
@@ -195,7 +205,7 @@ export class UnnboundLogger {
 
     const logEntry: Omit<HttpRequestLog, 'level'> = {
       type: 'httpRequest',
-      message: `${req.method} ${req.originalUrl || req.url}`,
+      message: req.ip === 'outgoing' ? 'Outgoing HTTP Request' : 'Incoming HTTP Request',
       traceId,
       requestId,
       duration: 0, // Will be updated in response
@@ -238,7 +248,7 @@ export class UnnboundLogger {
 
     const logEntry: Omit<HttpResponseLog, 'level'> = {
       type: 'httpResponse',
-      message: `${req.method} ${req.originalUrl || req.url} - ${res.statusCode}`,
+      message: getStatusMessage(res.statusCode),
       traceId,
       requestId,
       duration,
@@ -370,8 +380,10 @@ export class UnnboundLogger {
         config.headers = headers;
       }
 
-      // Store request start time for duration calculation
-      config.metadata = { startTime: Date.now() };
+      // Store request start time and generate requestId for duration calculation and correlation
+      const startTime = Date.now();
+      const requestId = generateUuid();
+      config.metadata = { startTime, requestId };
       
       // Log the outgoing request using proper httpRequest method
       const mockReq = {
@@ -385,7 +397,8 @@ export class UnnboundLogger {
 
       this.httpRequest(mockReq, { 
         traceId,
-        startTime: config.metadata.startTime 
+        requestId,
+        startTime 
       });
 
       return config;
@@ -400,6 +413,7 @@ export class UnnboundLogger {
     onFulfilled: (response: any): any => {
       // Calculate duration
       const startTime = response.config.metadata?.startTime || Date.now();
+      const requestId = response.config.metadata?.requestId;
       const duration = Date.now() - startTime;
       
       // Log the successful response using proper httpResponse method
@@ -415,12 +429,14 @@ export class UnnboundLogger {
         locals: { 
           body: response.data,
           startTime: startTime,
-          traceId: traceContext.getTraceId()
+          traceId: traceContext.getTraceId(),
+          requestId: requestId
         },
         getHeaders: () => response.headers || {}
       } as any;
 
       this.httpResponse(mockRes, mockReq, {
+        requestId,
         duration,
         traceId: traceContext.getTraceId()
       });
@@ -430,6 +446,7 @@ export class UnnboundLogger {
     onRejected: (error: any): any => {
       // Calculate duration for error responses
       const startTime = error.config?.metadata?.startTime || Date.now();
+      const requestId = error.config?.metadata?.requestId;
       const duration = Date.now() - startTime;
       
       // Log the error response using proper httpResponse method
@@ -446,20 +463,28 @@ export class UnnboundLogger {
           locals: { 
             body: error.response.data,
             startTime: startTime,
-            traceId: traceContext.getTraceId()
+            traceId: traceContext.getTraceId(),
+            requestId: requestId
           },
           getHeaders: () => error.response.headers || {}
         } as any;
 
         this.httpResponse(mockRes, mockReq, {
+          requestId,
           duration,
           traceId: traceContext.getTraceId()
         });
       } else {
         // For network errors without response, log as general error
-        this.error(`HTTP Request Failed: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL || ''}${error.config?.url}`, {
-          context: 'No response received',
-          error: error.message
+        this.error('HTTP Request Failed', {
+          context: {
+            reason: 'No response received',
+            method: error.config?.method?.toUpperCase() || 'UNKNOWN',
+            url: `${error.config?.baseURL || ''}${error.config?.url}`,
+          },
+          error: error.message,
+          requestId,
+          traceId: traceContext.getTraceId()
         });
       }
 

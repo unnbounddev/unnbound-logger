@@ -112,7 +112,7 @@ describe('UnnboundLogger', () => {
     const logCall = errorSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
       type: 'general',
-      message: 'Test error',
+      message: 'Error',
       error: {
         name: 'Error',
         message: 'Test error',
@@ -136,7 +136,7 @@ describe('UnnboundLogger', () => {
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
       type: 'httpRequest',
-      message: 'GET https://example.com/api',
+      message: 'Incoming HTTP Request',
       requestId: 'test-uuid',
       duration: 0,
       httpRequest: {
