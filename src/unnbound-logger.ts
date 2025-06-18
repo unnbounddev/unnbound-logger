@@ -17,10 +17,9 @@ import {
   DbQueryTransactionLog,
   SerializableError,
 } from './types';
-import { generateUuid } from './utils/id-generator';
 import { filterHeaders, normalizeIp } from './utils/logger-utils';
-import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { Request, Response, NextFunction } from 'express';
 import { traceContext } from './utils/trace-context';
 import { InternalAxiosRequestConfig, AxiosHeaders } from 'axios';
 import { getStatusMessage } from './utils/http-status-messages';
@@ -101,8 +100,8 @@ export class UnnboundLogger {
     message: string | Error | Record<string, unknown>,
     options: GeneralLogOptions = {}
   ): void {
-    const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
-    const requestId = options.requestId || generateUuid();
+    const traceId = options.traceId || traceContext.getTraceId() || uuidv4();
+    const requestId = options.requestId || uuidv4();
 
     let logEntry: Omit<Log<'general'>, 'level'> & { [key: string]: any };
 
@@ -186,14 +185,40 @@ export class UnnboundLogger {
   }
 
   /**
+   * Constructs the full URL from request information
+   * @param req - Express request object
+   * @returns Full URL string
+   */
+  private constructFullUrl(req: Request): string {
+    // If the URL is already absolute, return it directly
+    const reqUrl = req.originalUrl || req.url;
+    if (reqUrl?.startsWith('http://') || reqUrl?.startsWith('https://')) {
+      return reqUrl;
+    }
+
+    // Check if we have a base URL configured via environment variable
+    const serviceBaseUrl = process.env.SERVICE_BASE_URL;
+    if (serviceBaseUrl) {
+      // Use configured base URL (useful for ECS when you know your service URL)
+      return `${serviceBaseUrl.replace(/\/$/, '')}${reqUrl}`;
+    }
+
+    // Fallback to constructing from request info for incoming requests
+    const protocol = req.protocol || (req.secure ? 'https' : 'http');
+    const host = req.get('host') || req.get('x-forwarded-host') || 'localhost';
+    
+    return `${protocol}://${host}${reqUrl}`;
+  }
+
+  /**
    * Logs an HTTP request
    * @param req - Express request object
    * @param options - Additional logging options
    * @returns The request ID for correlating with the response
    */
   httpRequest(req: Request, options: HttpRequestLogOptions = {}): string {
-    const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
-    const requestId = options.requestId || generateUuid();
+    const traceId = options.traceId || traceContext.getTraceId() || uuidv4();
+    const requestId = options.requestId || uuidv4();
     const startTime = options.startTime || Date.now();
 
     // Store request metadata in res.locals for later use
@@ -210,7 +235,7 @@ export class UnnboundLogger {
       requestId,
       duration: 0, // Will be updated in response
       httpRequest: {
-        url: req.originalUrl || req.url,
+        url: this.constructFullUrl(req),
         method: req.method,
         headers: filterHeaders(req.headers),
         ip: normalizeIp(req.ip),
@@ -229,9 +254,9 @@ export class UnnboundLogger {
    * @param options - Additional logging options
    */
   httpResponse(res: Response, req: Request, options: HttpResponseLogOptions = {}): void {
-    const requestId = res.locals.requestId || options.requestId || generateUuid();
+    const requestId = res.locals.requestId || options.requestId || uuidv4();
     const startTime = res.locals.startTime || options.startTime || Date.now();
-    const traceId = res.locals.traceId || options.traceId || traceContext.getTraceId() || generateUuid();
+    const traceId = res.locals.traceId || options.traceId || traceContext.getTraceId() || uuidv4();
     const duration = options.duration || (Date.now() - startTime);
 
     // Determine log level based on status code
@@ -253,7 +278,7 @@ export class UnnboundLogger {
       requestId,
       duration,
       httpResponse: {
-        url: req.originalUrl || req.url,
+        url: this.constructFullUrl(req),
         method: req.method,
         headers: filterHeaders(res.getHeaders()),
         ip: normalizeIp(req.ip),
@@ -283,8 +308,8 @@ export class UnnboundLogger {
     },
     options: SftpTransactionLogOptions = {}
   ): void {
-    const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
-    const requestId = options.requestId || generateUuid();
+    const traceId = options.traceId || traceContext.getTraceId() || uuidv4();
+    const requestId = options.requestId || uuidv4();
     const duration = options.duration || (options.startTime ? Date.now() - options.startTime : 0);
 
     const level: LogLevel = operation.status === 'success' ? 'info' : 'error';
@@ -317,8 +342,8 @@ export class UnnboundLogger {
     },
     options: DbQueryTransactionLogOptions = {}
   ): void {
-    const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
-    const requestId = options.requestId || generateUuid();
+    const traceId = options.traceId || traceContext.getTraceId() || uuidv4();
+    const requestId = options.requestId || uuidv4();
     const duration = options.duration || (options.startTime ? Date.now() - options.startTime : 0);
 
     const level: LogLevel = query.status === 'success' ? 'info' : 'error';
@@ -382,7 +407,7 @@ export class UnnboundLogger {
 
       // Store request start time and generate requestId for duration calculation and correlation
       const startTime = Date.now();
-      const requestId = generateUuid();
+      const requestId = uuidv4();
       config.metadata = { startTime, requestId };
       
       // Log the outgoing request using proper httpRequest method
@@ -392,7 +417,10 @@ export class UnnboundLogger {
         originalUrl: `${config.baseURL || ''}${config.url}`,
         headers: config.headers || {},
         body: config.data,
-        ip: 'outgoing' // Mark as outgoing request
+        ip: 'outgoing', // Mark as outgoing request
+        protocol: 'https', // Default for outgoing
+        secure: true,
+        get: () => undefined // Mock get method for constructFullUrl
       } as any;
 
       this.httpRequest(mockReq, { 
@@ -421,7 +449,10 @@ export class UnnboundLogger {
         method: response.config.method?.toUpperCase() || 'UNKNOWN',
         url: `${response.config.baseURL || ''}${response.config.url}`,
         originalUrl: `${response.config.baseURL || ''}${response.config.url}`,
-        ip: 'outgoing' // Mark as outgoing request
+        ip: 'outgoing', // Mark as outgoing request
+        protocol: 'https', // Default for outgoing
+        secure: true,
+        get: () => undefined // Mock get method for constructFullUrl
       } as any;
 
       const mockRes = {
@@ -455,7 +486,10 @@ export class UnnboundLogger {
           method: error.config?.method?.toUpperCase() || 'UNKNOWN',
           url: `${error.config?.baseURL || ''}${error.config?.url}`,
           originalUrl: `${error.config?.baseURL || ''}${error.config?.url}`,
-          ip: 'outgoing' // Mark as outgoing request
+          ip: 'outgoing', // Mark as outgoing request
+          protocol: 'https', // Default for outgoing
+          secure: true,
+          get: () => undefined // Mock get method for constructFullUrl
         } as any;
 
         const mockRes = {

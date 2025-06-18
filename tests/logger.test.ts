@@ -1,5 +1,5 @@
 import { UnnboundLogger } from '../src';
-import * as idGen from '../src/utils/id-generator';
+import * as idGen from '../src/utils/logger-utils';
 import { Request, Response } from 'express';
 
 // Mock uuid to return predictable values

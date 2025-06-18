@@ -1,3 +1,6 @@
+/**
+ * Utility function to wrap a function with trace context
+ */
 import { v4 as uuidv4 } from 'uuid';
 import { traceContext } from './trace-context';
 

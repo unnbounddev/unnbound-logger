@@ -23,7 +23,7 @@ import {
   DbQueryTransactionLog,
   SerializableError,
 } from './types';
-import { generateUuid, clearTraceId } from './utils/id-generator';
+import { clearTraceId } from './utils/logger-utils';
 
 // Export everything needed for the library
 export {
@@ -49,7 +49,6 @@ export {
   SerializableError,
 
   // Utils
-  generateUuid,
   clearTraceId,
 };
 
