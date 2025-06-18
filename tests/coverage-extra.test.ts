@@ -58,6 +58,17 @@ function createMockResponse(overrides: Partial<Response> = {}): Response {
     getHeaders: jest.fn(() => ({})),
     get: jest.fn(),
     setHeader: jest.fn(),
+    on: jest.fn((event: string, callback: () => void) => {
+      // Simulate the 'finish' event for testing
+      if (event === 'finish') {
+        // Call the callback immediately for testing purposes
+        setTimeout(callback, 0);
+      }
+    }),
+    send: jest.fn(function(this: any, body: any) {
+      this.locals.body = body;
+      return this;
+    }),
     ...overrides
   } as unknown as Response;
 }
@@ -113,7 +124,7 @@ describe('Extra coverage for UnnboundLogger', () => {
     expect(shouldIgnorePath('/other', ['/api/*'])).toBe(false);
   });
 
-  test('should handle trace middleware', () => {
+  test('should handle trace middleware', async () => {
     const logger = new UnnboundLogger({
       traceHeaderKey: 'custom-trace-id',
       ignoreTraceRoutes: ['/health']
@@ -130,6 +141,9 @@ describe('Extra coverage for UnnboundLogger', () => {
 
     expect(mockRes.setHeader).toHaveBeenCalledWith('custom-trace-id', 'existing-trace-id');
     expect(next).toHaveBeenCalled();
+    
+    // Wait a bit for the async callback to execute
+    await new Promise(resolve => setTimeout(resolve, 10));
   });
 
   test('should ignore trace for specified routes', () => {
