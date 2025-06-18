@@ -39,6 +39,7 @@ export class UnnboundLogger {
   private defaultLevel: LogLevel;
   private serviceName?: string;
   private environment?: string;
+  private deploymentId: string;
   private traceHeaderKey: string;
   private ignoreTraceRoutes: string[];
   private ignoreAxiosTraceRoutes: string[];
@@ -51,6 +52,7 @@ export class UnnboundLogger {
     this.defaultLevel = options.defaultLevel || 'info';
     this.serviceName = options.serviceName;
     this.environment = options.environment;
+    this.deploymentId = process.env.DEPLOYMENT_ID || '';
     this.traceHeaderKey = options.traceHeaderKey || 'unnbound-trace-id';
     this.ignoreTraceRoutes = options.ignoreTraceRoutes || [];
     this.ignoreAxiosTraceRoutes = options.ignoreAxiosTraceRoutes || [];
@@ -121,6 +123,7 @@ export class UnnboundLogger {
         type: 'general' as const,
         traceId,
         requestId,
+        deploymentId: this.deploymentId,
         message: message.name,
         error,
         ...restOptions,
@@ -130,6 +133,7 @@ export class UnnboundLogger {
         type: 'general' as const,
         traceId,
         requestId,
+        deploymentId: this.deploymentId,
         message,
         ...restOptions,
       };
@@ -139,6 +143,7 @@ export class UnnboundLogger {
         type: 'general' as const,
         traceId,
         requestId,
+        deploymentId: this.deploymentId,
         ...(message as Record<string, unknown>),
         message: (message as { message?: string }).message || 'Structured log data',
         ...restOptions,
@@ -233,6 +238,7 @@ export class UnnboundLogger {
       message: req.ip === 'outgoing' ? 'Outgoing HTTP Request' : 'Incoming HTTP Request',
       traceId,
       requestId,
+      deploymentId: this.deploymentId,
       duration: 0, // Will be updated in response
       httpRequest: {
         url: this.constructFullUrl(req),
@@ -276,6 +282,7 @@ export class UnnboundLogger {
       message: getStatusMessage(res.statusCode),
       traceId,
       requestId,
+      deploymentId: this.deploymentId,
       duration,
       httpResponse: {
         url: this.constructFullUrl(req),
@@ -319,6 +326,7 @@ export class UnnboundLogger {
       message: `SFTP ${operation.operation} ${operation.status} - ${operation.path}`,
       traceId,
       requestId,
+      deploymentId: this.deploymentId,
       duration,
       sftp: operation,
     };
@@ -353,6 +361,7 @@ export class UnnboundLogger {
       message: `DB Query ${query.status} - ${query.vendor}`,
       traceId,
       requestId,
+      deploymentId: this.deploymentId,
       duration,
       db: query,
     };

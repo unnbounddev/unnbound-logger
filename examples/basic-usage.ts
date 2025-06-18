@@ -2,8 +2,9 @@
 /**
  * Basic usage examples for the logger with new log format
  */
-import { UnnboundLogger, generateUuid } from '../src/index';
+import { UnnboundLogger } from '../src/index';
 import { Request, Response } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Demonstrates basic usage of the structured logger with new format
@@ -12,9 +13,11 @@ function basicLoggingExample(): void {
   console.log('=== Basic Logging Example ===');
 
   // Create a new logger instance
+  // The deploymentId will be automatically populated from DEPLOYMENT_ID environment variable
   const logger = new UnnboundLogger();
 
   // Basic logging with different levels
+  // Each log will include deploymentId automatically
   logger.info('This is an info message');
   logger.warn('This is a warning message');
   logger.error('This is an error message');
@@ -172,7 +175,7 @@ function traceExample(): void {
   console.log('=== Trace ID Example ===');
 
   const logger = new UnnboundLogger();
-  const customTraceId = generateUuid();
+  const customTraceId = uuidv4();
 
   // All logs with the same trace ID
   logger.info('Order processing started', {

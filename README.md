@@ -53,6 +53,7 @@ interface Log<T extends LogType = 'general'> {
   message: string;
   traceId: string;
   requestId: string;
+  deploymentId: string; // Automatically populated from DEPLOYMENT_ID environment variable
   error?: SerializableError; // Only present for Error objects
 }
 
@@ -60,6 +61,25 @@ interface LogTransaction<T extends LogType> extends Log<T> {
   duration: number; // Duration in milliseconds
 }
 ```
+
+## Deployment Tracking
+
+The logger automatically includes a `deploymentId` field in all log entries. This field is populated from the `DEPLOYMENT_ID` environment variable, allowing you to track logs across different deployments of your application.
+
+```bash
+# Set the deployment ID in your environment
+export DEPLOYMENT_ID="v1.2.3-prod-20231201"
+
+# Or in your deployment configuration
+DEPLOYMENT_ID=v1.2.3-prod-20231201
+```
+
+If the `DEPLOYMENT_ID` environment variable is not set, the `deploymentId` field will be an empty string. This field helps with:
+
+- Tracking logs across different application deployments
+- Correlating issues with specific releases
+- Monitoring deployment health and performance
+- Debugging problems in specific deployment versions
 
 ## HTTP Request/Response Logging
 

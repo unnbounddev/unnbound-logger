@@ -29,7 +29,7 @@ export interface Log<T extends LogType = 'general'> {
   message: string;
   // serviceId: string; // To be added later
   // workflowId: string; // Not added through the logger SDK but later from Cloudwatch
-  // deploymentId: string; // To be added later
+  deploymentId: string;
   traceId: string;
   requestId: string;
   // spanId?: string; // To be added later
