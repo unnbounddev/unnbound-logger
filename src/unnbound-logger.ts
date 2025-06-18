@@ -373,15 +373,19 @@ export class UnnboundLogger {
       // Store request start time for duration calculation
       config.metadata = { startTime: Date.now() };
       
-      // Log the outgoing request
-      this.info(`HTTP Request: ${config.method?.toUpperCase()} ${config.baseURL || ''}${config.url}`, {
-        type: 'httpRequest',
-        httpRequest: {
-          url: `${config.baseURL || ''}${config.url}`,
-          method: config.method?.toUpperCase(),
-          headers: filterHeaders(config.headers),
-          body: config.data
-        }
+      // Log the outgoing request using proper httpRequest method
+      const mockReq = {
+        method: config.method?.toUpperCase() || 'UNKNOWN',
+        url: `${config.baseURL || ''}${config.url}`,
+        originalUrl: `${config.baseURL || ''}${config.url}`,
+        headers: config.headers || {},
+        body: config.data,
+        ip: 'outgoing' // Mark as outgoing request
+      } as any;
+
+      this.httpRequest(mockReq, { 
+        traceId,
+        startTime: config.metadata.startTime 
       });
 
       return config;
@@ -398,17 +402,27 @@ export class UnnboundLogger {
       const startTime = response.config.metadata?.startTime || Date.now();
       const duration = Date.now() - startTime;
       
-      // Log the successful response
-      this.info(`HTTP Response: ${response.config.method?.toUpperCase()} ${response.config.baseURL || ''}${response.config.url} - ${response.status}`, {
-        type: 'httpResponse',
+      // Log the successful response using proper httpResponse method
+      const mockReq = {
+        method: response.config.method?.toUpperCase() || 'UNKNOWN',
+        url: `${response.config.baseURL || ''}${response.config.url}`,
+        originalUrl: `${response.config.baseURL || ''}${response.config.url}`,
+        ip: 'outgoing' // Mark as outgoing request
+      } as any;
+
+      const mockRes = {
+        statusCode: response.status,
+        locals: { 
+          body: response.data,
+          startTime: startTime,
+          traceId: traceContext.getTraceId()
+        },
+        getHeaders: () => response.headers || {}
+      } as any;
+
+      this.httpResponse(mockRes, mockReq, {
         duration,
-        httpResponse: {
-          url: `${response.config.baseURL || ''}${response.config.url}`,
-          method: response.config.method?.toUpperCase(),
-          status: response.status,
-          headers: filterHeaders(response.headers),
-          body: response.data
-        }
+        traceId: traceContext.getTraceId()
       });
       
       return response;
@@ -418,20 +432,31 @@ export class UnnboundLogger {
       const startTime = error.config?.metadata?.startTime || Date.now();
       const duration = Date.now() - startTime;
       
-      // Log the error response
+      // Log the error response using proper httpResponse method
       if (error.response) {
-        this.error(`HTTP Error Response: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL || ''}${error.config?.url} - ${error.response.status}`, {
-          type: 'httpResponse',
+        const mockReq = {
+          method: error.config?.method?.toUpperCase() || 'UNKNOWN',
+          url: `${error.config?.baseURL || ''}${error.config?.url}`,
+          originalUrl: `${error.config?.baseURL || ''}${error.config?.url}`,
+          ip: 'outgoing' // Mark as outgoing request
+        } as any;
+
+        const mockRes = {
+          statusCode: error.response.status,
+          locals: { 
+            body: error.response.data,
+            startTime: startTime,
+            traceId: traceContext.getTraceId()
+          },
+          getHeaders: () => error.response.headers || {}
+        } as any;
+
+        this.httpResponse(mockRes, mockReq, {
           duration,
-          httpResponse: {
-            url: `${error.config?.baseURL || ''}${error.config?.url}`,
-            method: error.config?.method?.toUpperCase(),
-            status: error.response.status,
-            headers: filterHeaders(error.response.headers),
-            body: error.response.data
-          }
+          traceId: traceContext.getTraceId()
         });
       } else {
+        // For network errors without response, log as general error
         this.error(`HTTP Request Failed: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL || ''}${error.config?.url}`, {
           context: 'No response received',
           error: error.message
