@@ -63,6 +63,11 @@ export class UnnboundLogger {
         ...(this.environment && { environment: this.environment }),
       },
       timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
+      formatters: {
+        level: (label: string) => {
+          return { level: label };
+        },
+      },
     });
   }
 
