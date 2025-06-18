@@ -24,6 +24,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { traceContext } from './utils/trace-context';
 import { InternalAxiosRequestConfig, AxiosHeaders } from 'axios';
 
+// Extend AxiosRequestConfig to include metadata
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    metadata?: { startTime: number };
+  }
+}
+
 /**
  * UnnboundLogger provides typed, structured logging using Pino
  */
@@ -334,7 +341,23 @@ export class UnnboundLogger {
 
     const traceId = req.header(this.traceHeaderKey) || uuidv4();
     res.setHeader(this.traceHeaderKey, traceId);
+    
     traceContext.run(traceId, () => {
+      // Log the incoming request
+      const requestId = this.httpRequest(req, { traceId });
+
+      // Capture response body for logging
+      const originalSend = res.send;
+      res.send = function(body) {
+        res.locals.body = body;
+        return originalSend.call(this, body);
+      };
+
+      // Log the response when it finishes
+      res.on('finish', () => {
+        this.httpResponse(res, req, { requestId, traceId });
+      });
+
       next();
     });
   };
@@ -353,9 +376,75 @@ export class UnnboundLogger {
         headers.set(this.traceHeaderKey, traceId);
         config.headers = headers;
       }
+
+      // Store request start time for duration calculation
+      config.metadata = { startTime: Date.now() };
+      
+      // Log the outgoing request
+      this.info(`HTTP Request: ${config.method?.toUpperCase()} ${config.baseURL || ''}${config.url}`, {
+        type: 'httpRequest',
+        httpRequest: {
+          url: `${config.baseURL || ''}${config.url}`,
+          method: config.method?.toUpperCase(),
+          headers: filterHeaders(config.headers),
+          body: config.data
+        }
+      });
+
       return config;
     },
     onRejected: (error: any): any => {
+      return Promise.reject(error);
+    }
+  };
+
+  // Axios response interceptor (should be used separately)
+  public axiosResponseInterceptor = {
+    onFulfilled: (response: any): any => {
+      // Calculate duration
+      const startTime = response.config.metadata?.startTime || Date.now();
+      const duration = Date.now() - startTime;
+      
+      // Log the successful response
+      this.info(`HTTP Response: ${response.config.method?.toUpperCase()} ${response.config.baseURL || ''}${response.config.url} - ${response.status}`, {
+        type: 'httpResponse',
+        duration,
+        httpResponse: {
+          url: `${response.config.baseURL || ''}${response.config.url}`,
+          method: response.config.method?.toUpperCase(),
+          status: response.status,
+          headers: filterHeaders(response.headers),
+          body: response.data
+        }
+      });
+      
+      return response;
+    },
+    onRejected: (error: any): any => {
+      // Calculate duration for error responses
+      const startTime = error.config?.metadata?.startTime || Date.now();
+      const duration = Date.now() - startTime;
+      
+      // Log the error response
+      if (error.response) {
+        this.error(`HTTP Error Response: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL || ''}${error.config?.url} - ${error.response.status}`, {
+          type: 'httpResponse',
+          duration,
+          httpResponse: {
+            url: `${error.config?.baseURL || ''}${error.config?.url}`,
+            method: error.config?.method?.toUpperCase(),
+            status: error.response.status,
+            headers: filterHeaders(error.response.headers),
+            body: error.response.data
+          }
+        });
+      } else {
+        this.error(`HTTP Request Failed: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL || ''}${error.config?.url}`, {
+          context: 'No response received',
+          error: error.message
+        });
+      }
+
       return Promise.reject(error);
     }
   };

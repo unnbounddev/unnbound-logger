@@ -169,7 +169,7 @@ logger.dbQueryTransaction({
 
 ### Express Trace Middleware
 
-The library provides a trace middleware for Express applications that automatically logs HTTP requests and maintains trace context:
+The library provides a comprehensive trace middleware for Express applications that automatically handles trace context and HTTP logging:
 
 ```typescript
 import { UnnboundLogger } from 'unnbound-logger';
@@ -178,20 +178,21 @@ import express from 'express';
 const app = express();
 const logger = new UnnboundLogger();
 
-// Apply the trace middleware globally
+// Apply the comprehensive trace middleware globally
 app.use(logger.traceMiddleware);
-
 ```
 
 The trace middleware automatically:
-- Logs incoming requests with method, URL, headers, and body
 - Generates and maintains trace IDs across the request lifecycle
-- Measures request duration
+- Logs incoming requests with method, URL, headers, and body (filtered for security)
+- Logs outgoing responses with status code, headers, body, and duration
+- Measures request duration automatically
 - Handles errors and logs them appropriately
+- Captures response bodies for logging
 
 ### Axios Trace Middleware
 
-For logging outgoing HTTP requests made with Axios:
+For comprehensive logging of outgoing HTTP requests made with Axios:
 
 ```typescript
 import { UnnboundLogger } from 'unnbound-logger';
@@ -199,20 +200,26 @@ import axios from 'axios';
 
 const logger = new UnnboundLogger();
 
-// Add Axios trace middleware
+// Add both request and response interceptors for complete HTTP logging
 axios.interceptors.request.use(
   logger.axiosTraceMiddleware.onFulfilled,
   logger.axiosTraceMiddleware.onRejected
+);
+
+axios.interceptors.response.use(
+  logger.axiosResponseInterceptor.onFulfilled,
+  logger.axiosResponseInterceptor.onRejected
 );
 
 // All requests made with axios will be automatically logged
 axios.get('https://api.example.com/data');
 ```
 
-The Axios trace middleware:
-- Logs outgoing requests with method, URL, headers, and body
-- Maintains trace context across requests
-- Handles errors and logs them appropriately
+The Axios middleware:
+- Logs outgoing requests with method, URL, headers, and body (filtered for security)
+- Maintains trace context across requests by propagating trace IDs
+- Logs successful responses with status, headers, body, and duration
+- Logs error responses with detailed error information
 - Supports request/response filtering through configuration
 
 ## Function Tracing with withTrace
