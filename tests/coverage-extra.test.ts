@@ -221,7 +221,6 @@ describe('Extra coverage for UnnboundLogger', () => {
     expect(logSpy).toHaveBeenCalled();
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
-      level: 'info',
       type: 'sftpTransaction',
       message: 'SFTP upload success - /test/file.txt',
       sftp: {
@@ -251,7 +250,6 @@ describe('Extra coverage for UnnboundLogger', () => {
     expect(logSpy).toHaveBeenCalled();
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
-      level: 'info',
       type: 'dbQueryTransaction',
       message: 'DB Query success - postgres',
       db: {

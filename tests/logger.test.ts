@@ -94,7 +94,6 @@ describe('UnnboundLogger', () => {
     expect(logSpy).toHaveBeenCalled();
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
-      level: 'info',
       type: 'general',
       message: 'Test message',
       traceId: 'test-uuid',
@@ -112,7 +111,6 @@ describe('UnnboundLogger', () => {
     expect(errorSpy).toHaveBeenCalled();
     const logCall = errorSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
-      level: 'error',
       type: 'general',
       message: 'Test error',
       error: {
@@ -137,7 +135,6 @@ describe('UnnboundLogger', () => {
     expect(logSpy).toHaveBeenCalled();
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
-      level: 'info',
       type: 'httpRequest',
       message: 'GET https://example.com/api',
       requestId: 'test-uuid',
@@ -169,7 +166,6 @@ describe('UnnboundLogger', () => {
       expect(logSpy).toHaveBeenCalled();
       const logCall = logSpy.mock.calls[0];
       expect(logCall[0]).toMatchObject({
-        level: 'info',
         type: 'httpResponse',
         duration: 100,
         httpResponse: {
@@ -196,7 +192,6 @@ describe('UnnboundLogger', () => {
       expect(errorSpy).toHaveBeenCalled();
       const logCall = errorSpy.mock.calls[0];
       expect(logCall[0]).toMatchObject({
-        level: 'error',
         type: 'httpResponse',
         duration: 100,
         httpResponse: {

@@ -62,11 +62,6 @@ export class UnnboundLogger {
         ...(this.serviceName && { service: this.serviceName }),
         ...(this.environment && { environment: this.environment }),
       },
-      formatters: {
-        level: (label) => {
-          return { level: label };
-        },
-      },
       timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
     });
   }
@@ -103,7 +98,7 @@ export class UnnboundLogger {
     const traceId = options.traceId || traceContext.getTraceId() || generateUuid();
     const requestId = options.requestId || generateUuid();
 
-    let logEntry: Log<'general'>;
+    let logEntry: Omit<Log<'general'>, 'level'>;
     let error: SerializableError | undefined;
 
     if (message instanceof Error) {
@@ -113,7 +108,6 @@ export class UnnboundLogger {
         stack: message.stack,
       };
       logEntry = {
-        level,
         type: 'general',
         message: message.message,
         traceId,
@@ -122,7 +116,6 @@ export class UnnboundLogger {
       };
     } else if (typeof message === 'string') {
       logEntry = {
-        level,
         type: 'general',
         message,
         traceId,
@@ -131,7 +124,6 @@ export class UnnboundLogger {
     } else {
       // If message is an object, stringify it
       logEntry = {
-        level,
         type: 'general',
         message: JSON.stringify(message),
         traceId,
@@ -196,8 +188,7 @@ export class UnnboundLogger {
       req.res.locals.traceId = traceId;
     }
 
-    const logEntry: HttpRequestLog = {
-      level: options.level || this.defaultLevel,
+    const logEntry: Omit<HttpRequestLog, 'level'> = {
       type: 'httpRequest',
       message: `${req.method} ${req.originalUrl || req.url}`,
       traceId,
@@ -240,8 +231,7 @@ export class UnnboundLogger {
       }
     }
 
-    const logEntry: HttpResponseLog = {
-      level,
+    const logEntry: Omit<HttpResponseLog, 'level'> = {
       type: 'httpResponse',
       message: `${req.method} ${req.originalUrl || req.url} - ${res.statusCode}`,
       traceId,
@@ -284,8 +274,7 @@ export class UnnboundLogger {
 
     const level: LogLevel = operation.status === 'success' ? 'info' : 'error';
 
-    const logEntry: SftpTransactionLog = {
-      level,
+    const logEntry: Omit<SftpTransactionLog, 'level'> = {
       type: 'sftpTransaction',
       message: `SFTP ${operation.operation} ${operation.status} - ${operation.path}`,
       traceId,
@@ -319,8 +308,7 @@ export class UnnboundLogger {
 
     const level: LogLevel = query.status === 'success' ? 'info' : 'error';
 
-    const logEntry: DbQueryTransactionLog = {
-      level,
+    const logEntry: Omit<DbQueryTransactionLog, 'level'> = {
       type: 'dbQueryTransaction',
       message: `DB Query ${query.status} - ${query.vendor}`,
       traceId,
