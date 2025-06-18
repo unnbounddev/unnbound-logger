@@ -18,7 +18,7 @@ import {
   SerializableError,
 } from './types';
 import { generateUuid } from './utils/id-generator';
-import { filterHeaders } from './utils/logger-utils';
+import { filterHeaders, normalizeIp } from './utils/logger-utils';
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { traceContext } from './utils/trace-context';
@@ -203,7 +203,7 @@ export class UnnboundLogger {
         url: req.originalUrl || req.url,
         method: req.method,
         headers: filterHeaders(req.headers),
-        ip: req.ip,
+        ip: normalizeIp(req.ip),
         body: req.body,
       },
     };
@@ -246,7 +246,7 @@ export class UnnboundLogger {
         url: req.originalUrl || req.url,
         method: req.method,
         headers: filterHeaders(res.getHeaders()),
-        ip: req.ip,
+        ip: normalizeIp(req.ip),
         status: res.statusCode,
         body: res.locals.body,
       },
