@@ -249,7 +249,7 @@ export class UnnboundLogger {
       },
     };
 
-    this.logger[options.level || 'info'](logEntry);
+    this.log(options.level || 'info', logEntry);
     return requestId;
   }
 
@@ -292,7 +292,7 @@ export class UnnboundLogger {
       },
     };
 
-    this.logger[level](logEntry);
+    this.log(level, logEntry);
   }
 
   /**
@@ -329,7 +329,7 @@ export class UnnboundLogger {
       sftp: operation,
     };
 
-    this.logger[level](logEntry);
+    this.log(level, logEntry);
   }
 
   /**
@@ -364,7 +364,7 @@ export class UnnboundLogger {
       db: query,
     };
 
-    this.logger[level](logEntry);
+    this.log(level, logEntry);
   }
 
   // Trace middleware
