@@ -249,7 +249,7 @@ export class UnnboundLogger {
       },
     };
 
-    this.logger[options.level || this.defaultLevel](logEntry);
+    this.logger[options.level || 'info'](logEntry);
     return requestId;
   }
 
@@ -268,10 +268,8 @@ export class UnnboundLogger {
     // Determine log level based on status code
     let level: LogLevel = options.level || this.defaultLevel;
     if (!options.level) {
-      if (res.statusCode >= 500) {
+      if (res.statusCode >= 400) {
         level = 'error';
-      } else if (res.statusCode >= 400) {
-        level = 'warn';
       } else {
         level = 'info';
       }
