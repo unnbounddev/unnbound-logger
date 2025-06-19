@@ -273,38 +273,3 @@ describe('id-generator utils', () => {
     expect(idGen.getTraceId(workflowId)).toBeDefined();
   });
 });
-
-describe('index default logger exports', () => {
-  test('should call all default logger exports', () => {
-    expect(() => index.log('info', 'msg')).not.toThrow();
-    expect(() => index.error('err')).not.toThrow();
-    expect(() => index.warn('warn')).not.toThrow();
-    expect(() => index.info('info')).not.toThrow();
-    expect(() => index.debug('debug')).not.toThrow();
-
-    const mockReq = createMockRequest({
-      method: 'GET',
-      url: 'url',
-      originalUrl: 'url',
-    });
-
-    const mockRes = createMockResponse({
-      statusCode: 200,
-    });
-
-    expect(() => index.httpRequest(mockReq)).not.toThrow();
-    expect(() => index.httpResponse(mockRes, mockReq, { duration: 100 })).not.toThrow();
-    expect(() => index.sftpTransaction({
-      host: 'test.com',
-      username: 'test',
-      operation: 'upload',
-      path: '/test',
-      status: 'success'
-    })).not.toThrow();
-    expect(() => index.dbQueryTransaction({
-      instance: 'test',
-      vendor: 'postgres',
-      status: 'success'
-    })).not.toThrow();
-  });
-});

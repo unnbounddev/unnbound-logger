@@ -51,21 +51,3 @@ export {
   // Utils
   clearTraceId,
 };
-
-// Create a default logger instance
-const defaultLogger = new UnnboundLogger();
-export { defaultLogger };
-
-// Export default logger functions for convenience
-export const log = defaultLogger.log.bind(defaultLogger);
-export const error = defaultLogger.error.bind(defaultLogger);
-export const warn = defaultLogger.warn.bind(defaultLogger);
-export const info = defaultLogger.info.bind(defaultLogger);
-export const debug = defaultLogger.debug.bind(defaultLogger);
-export const httpRequest = defaultLogger.httpRequest.bind(defaultLogger);
-export const httpResponse = defaultLogger.httpResponse.bind(defaultLogger);
-export const sftpTransaction = defaultLogger.sftpTransaction.bind(defaultLogger);
-export const dbQueryTransaction = defaultLogger.dbQueryTransaction.bind(defaultLogger);
-
-// Default export is the UnnboundLogger class
-export default UnnboundLogger;

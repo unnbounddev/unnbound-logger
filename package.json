@@ -1,6 +1,6 @@
 {
   "name": "unnbound-logger-sdk",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A structured logging library with TypeScript support using Pino. Provides consistent, well-typed logging across different operational contexts with automatic trace ID propagation.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

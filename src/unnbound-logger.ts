@@ -64,7 +64,7 @@ export class UnnboundLogger {
         ...(this.serviceName && { service: this.serviceName }),
         ...(this.environment && { environment: this.environment }),
       },
-      timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
+      timestamp: false, // Let CloudWatch handle timestamps
       formatters: {
         level: (label: string) => {
           return { level: label };

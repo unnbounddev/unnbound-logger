@@ -15,7 +15,7 @@ MockDate.parse = jest.fn((date: string) => new Date(date).getTime());
 MockDate.UTC = jest.fn((a, b, c, d, e, f, g) =>
   new Date(Date.UTC(a, b, c, d, e, f, g)).getTime()
 );
-MockDate.prototype.toISOString = jest.fn(() => '2025-01-01T12:00:00.000Z');
+// Note: No longer mocking toISOString since timestamps are handled by CloudWatch
 global.Date = MockDate;
 
 // Helper function to create mock request objects
