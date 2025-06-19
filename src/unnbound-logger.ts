@@ -17,7 +17,7 @@ import {
   DbQueryTransactionLog,
   SerializableError,
 } from './types';
-import { filterHeaders, normalizeIp } from './utils/logger-utils';
+import { filterHeaders, normalizeIp, safeJsonParse } from './utils/logger-utils';
 import { v4 as uuidv4 } from 'uuid';
 import { Request, Response, NextFunction } from 'express';
 import { traceContext } from './utils/trace-context';
@@ -245,7 +245,7 @@ export class UnnboundLogger {
         method: req.method,
         headers: filterHeaders(req.headers),
         ip: normalizeIp(req.ip),
-        body: req.body,
+        body: safeJsonParse(req.body),
       },
     };
 
@@ -290,7 +290,7 @@ export class UnnboundLogger {
         headers: filterHeaders(res.getHeaders()),
         ip: normalizeIp(req.ip),
         status: res.statusCode,
-        body: res.locals.body,
+        body: safeJsonParse(res.locals.body),
       },
     };
 
@@ -425,7 +425,7 @@ export class UnnboundLogger {
         url: `${config.baseURL || ''}${config.url}`,
         originalUrl: `${config.baseURL || ''}${config.url}`,
         headers: config.headers || {},
-        body: config.data,
+        body: safeJsonParse(config.data),
         ip: 'outgoing', // Mark as outgoing request
         protocol: 'https', // Default for outgoing
         secure: true,
@@ -467,7 +467,7 @@ export class UnnboundLogger {
       const mockRes = {
         statusCode: response.status,
         locals: { 
-          body: response.data,
+          body: safeJsonParse(response.data),
           startTime: startTime,
           traceId: traceContext.getTraceId(),
           requestId: requestId
@@ -504,7 +504,7 @@ export class UnnboundLogger {
         const mockRes = {
           statusCode: error.response.status,
           locals: { 
-            body: error.response.data,
+            body: safeJsonParse(error.response.data),
             startTime: startTime,
             traceId: traceContext.getTraceId(),
             requestId: requestId
