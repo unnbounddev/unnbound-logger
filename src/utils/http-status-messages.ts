@@ -51,7 +51,7 @@ export const httpStatusDetails: { [key: number]: HttpStatus } = {
 export function getStatusMessage(statusCode: number): string {
   const status = httpStatusDetails[statusCode];
   if (status) {
-    return `${status.message} - ${status.description}`;
+    return `${statusCode} ${status.message} - ${status.description}`;
   }
-  return 'Unknown Status';
+  return `${statusCode} Unknown Status`;
 } 

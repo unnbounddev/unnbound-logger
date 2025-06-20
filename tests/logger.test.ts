@@ -1,6 +1,7 @@
 import { UnnboundLogger } from '../src';
 import * as idGen from '../src/utils/logger-utils';
 import { Request, Response } from 'express';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 // Mock uuid to return predictable values
 jest.mock('uuid', () => ({
@@ -12,7 +13,7 @@ const mockDate = new Date('2025-01-01T12:00:00.000Z');
 const MockDate = jest.fn(() => mockDate) as unknown as typeof Date;
 MockDate.now = jest.fn(() => mockDate.getTime());
 MockDate.parse = jest.fn((date: string) => new Date(date).getTime());
-MockDate.UTC = jest.fn((a, b, c, d, e, f, g) =>
+MockDate.UTC = jest.fn((a: number, b: number, c?: number, d?: number, e?: number, f?: number, g?: number) =>
   new Date(Date.UTC(a, b, c, d, e, f, g)).getTime()
 );
 // Note: No longer mocking toISOString since timestamps are handled by CloudWatch
@@ -36,7 +37,7 @@ function createMockRequest(overrides: Partial<Request> = {}): Request {
       if (header === 'user-agent') return 'test-agent';
       if (header === 'referer') return 'test-referer';
       return undefined;
-    }),
+    }) as any,
     header: jest.fn(),
     accepts: jest.fn(),
     acceptsCharsets: jest.fn(),
@@ -69,14 +70,14 @@ function createMockResponse(overrides: Partial<Response> = {}): Response {
     statusCode: 200,
     locals: {},
     getHeaders: jest.fn(() => ({})),
-    get: jest.fn(),
+    get: jest.fn() as any,
     ...overrides
   } as unknown as Response;
 }
 
 describe('UnnboundLogger', () => {
   let logger: UnnboundLogger;
-  let logSpy: jest.SpyInstance;
+  let logSpy: any;
 
   beforeEach(() => {
     logger = new UnnboundLogger();
@@ -94,10 +95,13 @@ describe('UnnboundLogger', () => {
     expect(logSpy).toHaveBeenCalled();
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
+      logId: 'test-uuid',
       type: 'general',
       message: 'Test message',
+      workflowId: '',
       traceId: 'test-uuid',
       requestId: 'test-uuid',
+      deploymentId: '',
     });
   });
 
@@ -111,8 +115,11 @@ describe('UnnboundLogger', () => {
     expect(errorSpy).toHaveBeenCalled();
     const logCall = errorSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
+      logId: 'test-uuid',
       type: 'general',
       message: 'Error',
+      workflowId: '',
+      deploymentId: '',
       error: {
         name: 'Error',
         message: 'Test error',
@@ -135,9 +142,12 @@ describe('UnnboundLogger', () => {
     expect(logSpy).toHaveBeenCalled();
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
+      logId: 'test-uuid',
       type: 'httpRequest',
       message: 'Incoming HTTP Request',
+      workflowId: '',
       requestId: 'test-uuid',
+      deploymentId: '',
       duration: 0,
       httpRequest: {
         url: 'https://example.com/api',
@@ -166,7 +176,11 @@ describe('UnnboundLogger', () => {
       expect(logSpy).toHaveBeenCalled();
       const logCall = logSpy.mock.calls[0];
       expect(logCall[0]).toMatchObject({
+        logId: 'test-uuid',
         type: 'httpResponse',
+        message: '200 OK - The request is OK',
+        workflowId: '',
+        deploymentId: '',
         duration: 100,
         httpResponse: {
           status: 200,
@@ -192,7 +206,11 @@ describe('UnnboundLogger', () => {
       expect(errorSpy).toHaveBeenCalled();
       const logCall = errorSpy.mock.calls[0];
       expect(logCall[0]).toMatchObject({
+        logId: 'test-uuid',
         type: 'httpResponse',
+        message: '500 Internal Server Error - A generic error message, given when no more specific message is suitable',
+        workflowId: '',
+        deploymentId: '',
         duration: 100,
         httpResponse: {
           status: 500,
@@ -219,5 +237,26 @@ describe('UnnboundLogger', () => {
     expect(warnCall[0]).toMatchObject({
       traceId: 'custom-trace-123',
     });
+  });
+
+  test('should include workflowId from environment variable', () => {
+    // Mock environment variable
+    process.env.UNNBOUND_WORKFLOW_ID = 'test-workflow-123';
+    
+    // Create new logger to pick up environment variable
+    const workflowLogger = new UnnboundLogger();
+    const workflowLogSpy = jest.spyOn(workflowLogger['logger'], 'info');
+
+    workflowLogger.info('Workflow step');
+
+    expect(workflowLogSpy).toHaveBeenCalled();
+    const logCall = workflowLogSpy.mock.calls[0];
+    expect(logCall[0]).toMatchObject({
+      workflowId: 'test-workflow-123',
+      message: 'Workflow step',
+    });
+
+    // Cleanup
+    delete process.env.UNNBOUND_WORKFLOW_ID;
   });
 });

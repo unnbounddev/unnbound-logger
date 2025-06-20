@@ -24,12 +24,13 @@ export interface SerializableError {
 }
 
 export interface Log<T extends LogType = 'general'> {
+  logId: string;
   level: LogLevel;
   type: T;
   message: string;
   // serviceId: string; // To be added later
-  // workflowId: string; // Not added through the logger SDK but later from Cloudwatch
   deploymentId: string;
+  workflowId: string;
   traceId: string;
   requestId: string;
   // spanId?: string; // To be added later
@@ -89,12 +90,6 @@ export interface DbQueryTransactionLog extends LogTransaction<'dbQueryTransactio
  * Configuration options for the logger
  */
 export interface LoggerOptions {
-  /** Default log level */
-  defaultLevel?: LogLevel;
-  /** Optional service name to include in logs */
-  serviceName?: string;
-  /** Optional environment name to include in logs */
-  environment?: string;
   /** Optional trace header key */
   traceHeaderKey?: string;
   /** Routes to ignore in trace middleware (supports glob patterns) */

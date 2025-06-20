@@ -48,12 +48,14 @@ All logs follow a standardized format:
 
 ```typescript
 interface Log<T extends LogType = 'general'> {
+  logId: string; // Unique identifier for each log entry
   level: LogLevel; // "info" | "debug" | "error" | "warn"
   type: T; // "general" | "httpRequest" | "httpResponse" | "sftpTransaction" | "dbQueryTransaction"
   message: string;
+  workflowId: string; // Workflow tracking (empty string if not set)
   traceId: string;
   requestId: string;
-  deploymentId: string; // Automatically populated from DEPLOYMENT_ID environment variable
+  deploymentId: string; // Automatically populated from UNNBOUND_DEPLOYMENT_ID
   error?: SerializableError; // Only present for Error objects
 }
 
@@ -62,24 +64,44 @@ interface LogTransaction<T extends LogType> extends Log<T> {
 }
 ```
 
-## Deployment Tracking
+## Workflow and Deployment Tracking
 
-The logger automatically includes a `deploymentId` field in all log entries. This field is populated from the `DEPLOYMENT_ID` environment variable, allowing you to track logs across different deployments of your application.
+### Workflow Tracking
+
+The logger includes a `workflowId` field in all log entries for tracking operations across services:
+
+```bash
+# Set the workflow ID in your environment
+export UNNBOUND_WORKFLOW_ID="order-processing-12345"
+
+# Or in your deployment configuration  
+UNNBOUND_WORKFLOW_ID=order-processing-12345
+```
+
+```typescript
+// Create a logger - workflowId is automatically set from environment
+const logger = new UnnboundLogger();
+// All logs will include the workflowId from UNNBOUND_WORKFLOW_ID environment variable
+```
+
+### Deployment Tracking
+
+The logger automatically includes a `deploymentId` field in all log entries. This field is populated from the `UNNBOUND_DEPLOYMENT_ID` environment variable, allowing you to track logs per deployment.
 
 ```bash
 # Set the deployment ID in your environment
-export DEPLOYMENT_ID="v1.2.3-prod-20231201"
+export UNNBOUND_DEPLOYMENT_ID="v1.2.3-prod-20231201"
 
 # Or in your deployment configuration
-DEPLOYMENT_ID=v1.2.3-prod-20231201
+UNNBOUND_DEPLOYMENT_ID=v1.2.3-prod-20231201
 ```
 
-If the `DEPLOYMENT_ID` environment variable is not set, the `deploymentId` field will be an empty string. This field helps with:
+If the environment variables are not set, the fields will be empty strings. These fields help with:
 
-- Tracking logs across different application deployments
-- Correlating issues with specific releases
-- Monitoring deployment health and performance
-- Debugging problems in specific deployment versions
+- **Workflow ID**: Unique identifier for the workflow
+- **Deployment ID**: Tracking logs across different application deployments
+- **Correlating issues**: Link problems to specific workflows and releases
+- **Monitoring**: Track health and performance across workflows and deployments
 
 ## HTTP Request/Response Logging
 
@@ -326,14 +348,21 @@ The main logger class that provides all logging functionality using Pino.
 new UnnboundLogger(options?: LoggerOptions)
 ```
 
+**LoggerOptions:**
+- `traceHeaderKey?: string` - Custom trace header name (default: 'unnbound-trace-id')
+- `ignoreTraceRoutes?: string[]` - Routes to ignore in Express middleware
+- `ignoreAxiosTraceRoutes?: string[]` - Routes to ignore in Axios middleware
+
+**Note:** `workflowId` and `deploymentId` are configured via environment variables (`UNNBOUND_WORKFLOW_ID`, `UNNBOUND_DEPLOYMENT_ID`).
+
 #### Methods
 
-- `log(level: LogLevel, message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
-- `error(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
-- `warn(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
-- `info(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
-- `debug(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): void`
-- `httpRequest(req: Request, options?: HttpRequestLogOptions): string`
-- `httpResponse(res: Response, req: Request, options: HttpResponseLogOptions): void`
-- `sftpTransaction(operation: SftpOperation, options?: SftpTransactionLogOptions): void`
-- `dbQueryTransaction(query: DbQuery, options?: DbQueryTransactionLogOptions): void`
+- `log(level: LogLevel, message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): Log`
+- `error(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): Log`
+- `warn(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): Log`
+- `info(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): Log`
+- `debug(message: string | Error | Record<string, unknown>, options?: GeneralLogOptions): Log`
+- `httpRequest(req: Request, options?: HttpRequestLogOptions): HttpRequestLog`
+- `httpResponse(res: Response, req: Request, options: HttpResponseLogOptions): HttpResponseLog`
+- `sftpTransaction(operation: SftpOperation, options?: SftpTransactionLogOptions): SftpTransactionLog`
+- `dbQueryTransaction(query: DbQuery, options?: DbQueryTransactionLogOptions): DbQueryTransactionLog`

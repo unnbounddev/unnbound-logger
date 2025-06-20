@@ -76,9 +76,7 @@ function createMockResponse(overrides: Partial<Response> = {}): Response {
 describe('Extra coverage for UnnboundLogger', () => {
   test('should create logger with custom options', () => {
     const logger = new UnnboundLogger({
-      defaultLevel: 'debug',
-      serviceName: 'test-service',
-      environment: 'test'
+      traceHeaderKey: 'custom-trace-header'
     });
     expect(logger).toBeInstanceOf(UnnboundLogger);
   });
@@ -222,7 +220,6 @@ describe('Extra coverage for UnnboundLogger', () => {
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
       type: 'sftpTransaction',
-      message: 'SFTP upload success - /test/file.txt',
       sftp: {
         host: 'example.com',
         username: 'testuser',
@@ -232,6 +229,7 @@ describe('Extra coverage for UnnboundLogger', () => {
         bytesTransferred: 1024
       }
     });
+    expect(logCall[1]).toBe('SFTP upload success - /test/file.txt');
   });
 
   test('should log database query transactions', () => {
@@ -251,7 +249,6 @@ describe('Extra coverage for UnnboundLogger', () => {
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
       type: 'dbQueryTransaction',
-      message: 'DB Query success - postgres',
       db: {
         instance: 'localhost:5432',
         vendor: 'postgres',
@@ -260,6 +257,7 @@ describe('Extra coverage for UnnboundLogger', () => {
         rowsReturned: 10
       }
     });
+    expect(logCall[1]).toBe('DB Query success - postgres');
   });
 });
 

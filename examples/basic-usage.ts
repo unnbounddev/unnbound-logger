@@ -13,7 +13,8 @@ function basicLoggingExample(): void {
   console.log('=== Basic Logging Example ===');
 
   // Create a new logger instance
-  // The deploymentId will be automatically populated from DEPLOYMENT_ID environment variable
+  // The deploymentId will be automatically populated from UNNBOUND_DEPLOYMENT_ID environment variable
+  // The workflowId will be automatically populated from UNNBOUND_WORKFLOW_ID environment variable
   const logger = new UnnboundLogger();
 
   // Basic logging with different levels
@@ -61,8 +62,8 @@ function httpLoggingExample(): void {
     get: () => undefined,
   } as unknown as Response;
 
-  const requestId = logger.httpRequest(mockReq);
-  logger.httpResponse(mockRes, mockReq, { requestId, duration: 150 });
+  const reqLog = logger.httpRequest(mockReq);
+  logger.httpResponse(mockRes, mockReq, { requestId: reqLog.requestId, duration: 150 });
 
   // Log HTTP request that will fail
   const errorReq = {
@@ -80,8 +81,8 @@ function httpLoggingExample(): void {
     get: () => undefined,
   } as unknown as Response;
 
-  const errorRequestId = logger.httpRequest(errorReq);
-  logger.httpResponse(errorRes, errorReq, { requestId: errorRequestId, duration: 90 });
+  const errorReqLog = logger.httpRequest(errorReq);
+  logger.httpResponse(errorRes, errorReq, { requestId: errorReqLog.requestId, duration: 90 });
 
   console.log('\n');
 }
@@ -200,9 +201,9 @@ function traceExample(): void {
     get: () => undefined,
   } as unknown as Response;
 
-  const paymentRequestId = logger.httpRequest(paymentReq, { traceId: customTraceId });
+  const paymentReqLog = logger.httpRequest(paymentReq, { traceId: customTraceId });
   logger.httpResponse(paymentRes, paymentReq, {
-    requestId: paymentRequestId,
+    requestId: paymentReqLog.requestId,
     traceId: customTraceId,
     duration: 300
   });

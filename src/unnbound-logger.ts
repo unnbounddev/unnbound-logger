@@ -36,9 +36,7 @@ declare module 'axios' {
  */
 export class UnnboundLogger {
   private logger: pino.Logger;
-  private defaultLevel: LogLevel;
-  private serviceName?: string;
-  private environment?: string;
+  private workflowId: string;
   private deploymentId: string;
   private traceHeaderKey: string;
   private ignoreTraceRoutes: string[];
@@ -49,21 +47,16 @@ export class UnnboundLogger {
    * @param options - Configuration options for the logger
    */
   constructor(options: LoggerOptions = {}) {
-    this.defaultLevel = options.defaultLevel || 'info';
-    this.serviceName = options.serviceName;
-    this.environment = options.environment;
-    this.deploymentId = process.env.DEPLOYMENT_ID || '';
+    this.workflowId = process.env.UNNBOUND_WORKFLOW_ID || '';
+    this.deploymentId = process.env.UNNBOUND_DEPLOYMENT_ID || '';
     this.traceHeaderKey = options.traceHeaderKey || 'unnbound-trace-id';
     this.ignoreTraceRoutes = options.ignoreTraceRoutes || [];
     this.ignoreAxiosTraceRoutes = options.ignoreAxiosTraceRoutes || [];
 
     // Create Pino logger
     this.logger = pino({
-      level: this.defaultLevel,
-      base: {
-        ...(this.serviceName && { service: this.serviceName }),
-        ...(this.environment && { environment: this.environment }),
-      },
+      level: 'info',
+      base: {}, // Disable all default base fields (pid, hostname)
       timestamp: false, // Let CloudWatch handle timestamps
       formatters: {
         level: (label: string) => {
@@ -101,7 +94,8 @@ export class UnnboundLogger {
     level: LogLevel,
     message: string | Error | Record<string, unknown>,
     options: GeneralLogOptions = {}
-  ): void {
+  ): Log {
+    const logId = uuidv4();
     const traceId = options.traceId || traceContext.getTraceId() || uuidv4();
     const requestId = options.requestId || uuidv4();
 
@@ -110,8 +104,18 @@ export class UnnboundLogger {
     const {
       traceId: optionTraceId,
       requestId: optionRequestId,
+      level: optionLevel,
       ...restOptions
     } = options;
+
+    const baseEntry = {
+      logId,
+      type: 'general' as const,
+      workflowId: this.workflowId,
+      traceId,
+      requestId,
+      deploymentId: this.deploymentId,
+    };
 
     if (message instanceof Error) {
       const error: SerializableError = {
@@ -120,37 +124,32 @@ export class UnnboundLogger {
         stack: message.stack,
       };
       logEntry = {
-        type: 'general' as const,
-        traceId,
-        requestId,
-        deploymentId: this.deploymentId,
+        ...baseEntry,
         message: message.name,
         error,
         ...restOptions,
       };
     } else if (typeof message === 'string') {
       logEntry = {
-        type: 'general' as const,
-        traceId,
-        requestId,
-        deploymentId: this.deploymentId,
+        ...baseEntry,
         message,
         ...restOptions,
       };
     } else {
       // If message is an object, it's part of the log entry
       logEntry = {
-        type: 'general' as const,
-        traceId,
-        requestId,
-        deploymentId: this.deploymentId,
+        ...baseEntry,
         ...(message as Record<string, unknown>),
         message: (message as { message?: string }).message || 'Structured log data',
         ...restOptions,
       };
     }
 
-    this.logger[level](logEntry);
+    // Separate the message from the log data and explicitly exclude any level field
+    const { message: logMessage, level: excludedLevel, ...logData } = logEntry as any;
+    this.logger[level](logData, logMessage);
+    
+    return logEntry as Log;
   }
 
   /**
@@ -158,8 +157,8 @@ export class UnnboundLogger {
    * @param message - Error message or object
    * @param options - Additional logging options
    */
-  error(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): void {
-    this.log('error', message, options);
+  error(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): Log {
+    return this.log('error', message, options);
   }
 
   /**
@@ -167,8 +166,8 @@ export class UnnboundLogger {
    * @param message - Warning message
    * @param options - Additional logging options
    */
-  warn(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): void {
-    this.log('warn', message, options);
+  warn(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): Log {
+    return this.log('warn', message, options);
   }
 
   /**
@@ -176,8 +175,8 @@ export class UnnboundLogger {
    * @param message - Info message
    * @param options - Additional logging options
    */
-  info(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): void {
-    this.log('info', message, options);
+  info(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): Log {
+    return this.log('info', message, options);
   }
 
   /**
@@ -185,8 +184,8 @@ export class UnnboundLogger {
    * @param message - Debug message
    * @param options - Additional logging options
    */
-  debug(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): void {
-    this.log('debug', message, options);
+  debug(message: string | Error | Record<string, unknown>, options: GeneralLogOptions = {}): Log {
+    return this.log('debug', message, options);
   }
 
   /**
@@ -221,7 +220,8 @@ export class UnnboundLogger {
    * @param options - Additional logging options
    * @returns The request ID for correlating with the response
    */
-  httpRequest(req: Request, options: HttpRequestLogOptions = {}): string {
+  httpRequest(req: Request, options: HttpRequestLogOptions = {}): HttpRequestLog {
+    const logId = uuidv4();
     const traceId = options.traceId || traceContext.getTraceId() || uuidv4();
     const requestId = options.requestId || uuidv4();
     const startTime = options.startTime || Date.now();
@@ -231,11 +231,14 @@ export class UnnboundLogger {
       req.res.locals.requestId = requestId;
       req.res.locals.startTime = startTime;
       req.res.locals.traceId = traceId;
+      req.res.locals.workflowId = this.workflowId;
     }
 
-    const logEntry: Omit<HttpRequestLog, 'level'> = {
+    const logEntry: Omit<HttpRequestLog, 'level'> & { [key: string]: any } = {
+      logId,
       type: 'httpRequest',
       message: req.ip === 'outgoing' ? 'Outgoing HTTP Request' : 'Incoming HTTP Request',
+      workflowId: this.workflowId,
       traceId,
       requestId,
       deploymentId: this.deploymentId,
@@ -249,8 +252,8 @@ export class UnnboundLogger {
       },
     };
 
-    this.log(options.level || 'info', logEntry);
-    return requestId;
+    const result = this.log(options.level || 'info', logEntry);
+    return result as unknown as HttpRequestLog;
   }
 
   /**
@@ -259,14 +262,16 @@ export class UnnboundLogger {
    * @param req - Express request object
    * @param options - Additional logging options
    */
-  httpResponse(res: Response, req: Request, options: HttpResponseLogOptions = {}): void {
+  httpResponse(res: Response, req: Request, options: HttpResponseLogOptions = {}): HttpResponseLog {
+    const logId = uuidv4();
     const requestId = res.locals.requestId || options.requestId || uuidv4();
     const startTime = res.locals.startTime || options.startTime || Date.now();
+    const workflowId = res.locals.workflowId || this.workflowId;
     const traceId = res.locals.traceId || options.traceId || traceContext.getTraceId() || uuidv4();
     const duration = options.duration || (Date.now() - startTime);
 
     // Determine log level based on status code
-    let level: LogLevel = options.level || this.defaultLevel;
+    let level: LogLevel = options.level || 'info';
     if (!options.level) {
       if (res.statusCode >= 400) {
         level = 'error';
@@ -275,9 +280,11 @@ export class UnnboundLogger {
       }
     }
 
-    const logEntry: Omit<HttpResponseLog, 'level'> = {
+    const logEntry: Omit<HttpResponseLog, 'level'> & { [key: string]: any } = {
+      logId,
       type: 'httpResponse',
       message: getStatusMessage(res.statusCode),
+      workflowId: workflowId || '',
       traceId,
       requestId,
       deploymentId: this.deploymentId,
@@ -292,7 +299,8 @@ export class UnnboundLogger {
       },
     };
 
-    this.log(level, logEntry);
+    const result = this.log(level, logEntry);
+    return result as unknown as HttpResponseLog;
   }
 
   /**
@@ -312,16 +320,19 @@ export class UnnboundLogger {
       sourcePath?: string;
     },
     options: SftpTransactionLogOptions = {}
-  ): void {
+  ): SftpTransactionLog {
+    const logId = uuidv4();
     const traceId = options.traceId || traceContext.getTraceId() || uuidv4();
     const requestId = options.requestId || uuidv4();
     const duration = options.duration || (options.startTime ? Date.now() - options.startTime : 0);
 
     const level: LogLevel = operation.status === 'success' ? 'info' : 'error';
 
-    const logEntry: Omit<SftpTransactionLog, 'level'> = {
+    const logEntry: Omit<SftpTransactionLog, 'level'> & { [key: string]: any } = {
+      logId,
       type: 'sftpTransaction',
       message: `SFTP ${operation.operation} ${operation.status} - ${operation.path}`,
+      workflowId: this.workflowId,
       traceId,
       requestId,
       deploymentId: this.deploymentId,
@@ -329,7 +340,8 @@ export class UnnboundLogger {
       sftp: operation,
     };
 
-    this.log(level, logEntry);
+    const result = this.log(level, logEntry);
+    return result as unknown as SftpTransactionLog;
   }
 
   /**
@@ -347,16 +359,19 @@ export class UnnboundLogger {
       rowsAffected?: number;
     },
     options: DbQueryTransactionLogOptions = {}
-  ): void {
+  ): DbQueryTransactionLog {
+    const logId = uuidv4();
     const traceId = options.traceId || traceContext.getTraceId() || uuidv4();
     const requestId = options.requestId || uuidv4();
     const duration = options.duration || (options.startTime ? Date.now() - options.startTime : 0);
 
     const level: LogLevel = query.status === 'success' ? 'info' : 'error';
 
-    const logEntry: Omit<DbQueryTransactionLog, 'level'> = {
+    const logEntry: Omit<DbQueryTransactionLog, 'level'> & { [key: string]: any } = {
+      logId,
       type: 'dbQueryTransaction',
       message: `DB Query ${query.status} - ${query.vendor}`,
+      workflowId: this.workflowId,
       traceId,
       requestId,
       deploymentId: this.deploymentId,
@@ -364,7 +379,8 @@ export class UnnboundLogger {
       db: query,
     };
 
-    this.log(level, logEntry);
+    const result = this.log(level, logEntry);
+    return result as unknown as DbQueryTransactionLog;
   }
 
   // Trace middleware
@@ -379,7 +395,7 @@ export class UnnboundLogger {
     
     traceContext.run(traceId, () => {
       // Log the incoming request
-      const requestId = this.httpRequest(req, { traceId });
+      const reqLog = this.httpRequest(req, { traceId });
 
       // Capture response body for logging
       const originalSend = res.send;
@@ -390,7 +406,7 @@ export class UnnboundLogger {
 
       // Log the response when it finishes
       res.on('finish', () => {
-        this.httpResponse(res, req, { requestId, traceId });
+        this.httpResponse(res, req, { requestId: reqLog.requestId, traceId });
       });
 
       next();

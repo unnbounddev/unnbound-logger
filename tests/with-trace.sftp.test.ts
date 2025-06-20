@@ -8,9 +8,7 @@ describe('withTrace Example', () => {
   beforeEach(() => {
     // Initialize logger with test configuration
     logger = new UnnboundLogger({
-      defaultLevel: 'debug',
-      serviceName: 'test-service',
-      environment: 'test'
+      traceHeaderKey: 'test-trace-id'
     });
   });
 
