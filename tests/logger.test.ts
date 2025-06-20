@@ -70,7 +70,7 @@ function createMockResponse(overrides: Partial<Response> = {}): Response {
     statusCode: 200,
     locals: {},
     getHeaders: jest.fn(() => ({})),
-    get: jest.fn() as any,
+    get: jest.fn().mockReturnValue(undefined) as any,
     ...overrides
   } as unknown as Response;
 }
@@ -97,12 +97,12 @@ describe('UnnboundLogger', () => {
     expect(logCall[0]).toMatchObject({
       logId: 'test-uuid',
       type: 'general',
-      message: 'Test message',
       workflowId: '',
       traceId: 'test-uuid',
       requestId: 'test-uuid',
       deploymentId: '',
     });
+    expect(logCall[1]).toBe('Test message');
   });
 
   test('should log errors', () => {
@@ -117,7 +117,6 @@ describe('UnnboundLogger', () => {
     expect(logCall[0]).toMatchObject({
       logId: 'test-uuid',
       type: 'general',
-      message: 'Error',
       workflowId: '',
       deploymentId: '',
       error: {
@@ -126,6 +125,7 @@ describe('UnnboundLogger', () => {
         stack: 'Error: Test error\n    at test.ts:10:20',
       },
     });
+    expect(logCall[1]).toBe('Error');
   });
 
   test('should log HTTP requests', () => {
@@ -136,15 +136,14 @@ describe('UnnboundLogger', () => {
       query: { test: 'test' },
     });
 
-    const requestId = logger.httpRequest(mockReq);
+    const httpRequestLog = logger.httpRequest(mockReq);
 
-    expect(requestId).toBe('test-uuid');
+    expect(httpRequestLog.requestId).toBe('test-uuid');
     expect(logSpy).toHaveBeenCalled();
     const logCall = logSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
       logId: 'test-uuid',
       type: 'httpRequest',
-      message: 'Incoming HTTP Request',
       workflowId: '',
       requestId: 'test-uuid',
       deploymentId: '',
@@ -156,6 +155,7 @@ describe('UnnboundLogger', () => {
         body: {},
       },
     });
+    expect(logCall[1]).toBe('Incoming HTTP Request');
   });
 
   describe('HTTP Response Logging', () => {
@@ -169,7 +169,7 @@ describe('UnnboundLogger', () => {
       const mockRes = createMockResponse({
         statusCode: 200,
         getHeaders: jest.fn(() => ({})),
-        get: jest.fn(),
+        get: jest.fn().mockReturnValue(undefined) as any,
       });
 
       logger.httpResponse(mockRes, mockReq, { duration: 100 });
@@ -178,7 +178,6 @@ describe('UnnboundLogger', () => {
       expect(logCall[0]).toMatchObject({
         logId: 'test-uuid',
         type: 'httpResponse',
-        message: '200 OK - The request is OK',
         workflowId: '',
         deploymentId: '',
         duration: 100,
@@ -186,6 +185,7 @@ describe('UnnboundLogger', () => {
           status: 200,
         },
       });
+      expect(logCall[1]).toBe('200 OK - The request is OK');
     });
 
     test('should set log level based on HTTP status code', () => {
@@ -199,7 +199,7 @@ describe('UnnboundLogger', () => {
       const mockRes = createMockResponse({
         statusCode: 500,
         getHeaders: jest.fn(() => ({})),
-        get: jest.fn(),
+        get: jest.fn().mockReturnValue(undefined) as any,
       });
 
       logger.httpResponse(mockRes, mockReq, { duration: 100 });
@@ -208,7 +208,6 @@ describe('UnnboundLogger', () => {
       expect(logCall[0]).toMatchObject({
         logId: 'test-uuid',
         type: 'httpResponse',
-        message: '500 Internal Server Error - A generic error message, given when no more specific message is suitable',
         workflowId: '',
         deploymentId: '',
         duration: 100,
@@ -216,6 +215,7 @@ describe('UnnboundLogger', () => {
           status: 500,
         },
       });
+      expect(logCall[1]).toBe('500 Internal Server Error - A generic error message, given when no more specific message is suitable');
     });
   });
 
@@ -253,8 +253,8 @@ describe('UnnboundLogger', () => {
     const logCall = workflowLogSpy.mock.calls[0];
     expect(logCall[0]).toMatchObject({
       workflowId: 'test-workflow-123',
-      message: 'Workflow step',
     });
+    expect(logCall[1]).toBe('Workflow step');
 
     // Cleanup
     delete process.env.UNNBOUND_WORKFLOW_ID;
