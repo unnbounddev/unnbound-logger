@@ -58,6 +58,7 @@ export class UnnboundLogger {
       level: 'info',
       base: {}, // Disable all default base fields (pid, hostname)
       timestamp: false, // Let CloudWatch handle timestamps
+      messageKey: 'messages', // Change message field from 'msg' to 'messages'
       formatters: {
         level: (label: string) => {
           return { level: label };
