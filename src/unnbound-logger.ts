@@ -117,7 +117,6 @@ export class UnnboundLogger {
       logId,
       type: 'general' as const,
       workflowId: this.workflowId,
-      workflowUrl: this.workflowUrl,
       serviceId: this.serviceId,
       traceId,
       requestId,
@@ -207,11 +206,10 @@ export class UnnboundLogger {
       return reqUrl;
     }
 
-    // Check if we have a base URL configured via environment variable
-    const serviceBaseUrl = process.env.SERVICE_BASE_URL;
-    if (serviceBaseUrl) {
-      // Use configured base URL (useful for ECS when you know your service URL)
-      return `${serviceBaseUrl.replace(/\/$/, '')}${reqUrl}`;
+    // Check if we have a workflow URL configured (preferred method)
+    if (this.workflowUrl) {
+      // Use workflow URL as the base URL
+      return `${this.workflowUrl.replace(/\/$/, '')}${reqUrl}`;
     }
 
     // Fallback to constructing from request info for incoming requests
@@ -248,7 +246,6 @@ export class UnnboundLogger {
       type: 'httpRequest',
       message: req.ip === 'outgoing' ? 'Outgoing HTTP Request' : 'Incoming HTTP Request',
       workflowId: this.workflowId,
-      workflowUrl: this.workflowUrl,
       serviceId: this.serviceId,
       traceId,
       requestId,
@@ -280,7 +277,6 @@ export class UnnboundLogger {
     const requestId = res.locals.requestId || options.requestId || uuidv4();
     const startTime = res.locals.startTime || options.startTime || Date.now();
     const workflowId = res.locals.workflowId || this.workflowId;
-    const workflowUrl = res.locals.workflowUrl || this.workflowUrl;
     const serviceId = res.locals.serviceId || this.serviceId;
     const traceId = res.locals.traceId || options.traceId || traceContext.getTraceId() || uuidv4();
     const duration = options.duration || (Date.now() - startTime);
@@ -300,7 +296,6 @@ export class UnnboundLogger {
       type: 'httpResponse',
       message: getStatusMessage(res.statusCode),
       workflowId: workflowId || '',
-      workflowUrl: workflowUrl || '',
       serviceId: serviceId || '',
       traceId,
       requestId,
@@ -352,7 +347,6 @@ export class UnnboundLogger {
       type: 'sftpTransaction',
       message: `SFTP ${operation.operation} ${operation.status} - ${operation.path}`,
       workflowId: this.workflowId,
-      workflowUrl: this.workflowUrl,
       serviceId: this.serviceId,
       traceId,
       requestId,
@@ -395,7 +389,6 @@ export class UnnboundLogger {
       type: 'dbQueryTransaction',
       message: `DB Query ${query.status} - ${query.vendor}`,
       workflowId: this.workflowId,
-      workflowUrl: this.workflowUrl,
       serviceId: this.serviceId,
       traceId,
       requestId,

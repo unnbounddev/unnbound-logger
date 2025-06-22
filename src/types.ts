@@ -31,7 +31,6 @@ export interface Log<T extends LogType = 'general'> {
   serviceId: string;
   deploymentId: string;
   workflowId: string;
-  workflowUrl: string;
   traceId: string;
   requestId: string;
   // spanId?: string; // To be added later

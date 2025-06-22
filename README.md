@@ -53,7 +53,6 @@ interface Log<T extends LogType = 'general'> {
   type: T; // "general" | "httpRequest" | "httpResponse" | "sftpTransaction" | "dbQueryTransaction"
   message: string;
   workflowId: string;
-  workflowUrl: string;
   serviceId: string;
   traceId: string;
   requestId: string;
@@ -85,9 +84,8 @@ UNNBOUND_SERVICE_ID=order-service
 ```
 
 ```typescript
-// Create a logger - workflowId, workflowUrl, and serviceId are automatically set from environment
+// Create a logger - workflowId and serviceId are automatically set from environment
 const logger = new UnnboundLogger();
-// All logs will include the workflowId, workflowUrl, and serviceId from their respective environment variables
 ```
 
 ### Deployment Tracking
@@ -104,10 +102,10 @@ UNNBOUND_DEPLOYMENT_ID=v1.2.3-prod-20231201
 
 If the environment variables are not set, the fields will be empty strings. These fields help with:
 
-- **Workflow ID**: Unique identifier for the workflow
-- **Workflow URL**: URL link to the workflow for easy navigation
-- **Service ID**: Identifier for the specific service/component
-- **Deployment ID**: Tracking logs across different application deployments
+- **Workflow ID**: Unique identifier for the workflow (logged in each entry)
+- **Workflow URL**: Used internally for URL construction in webhook endpoints (not logged as a field)
+- **Service ID**: Identifier for the specific service/component (logged in each entry)
+- **Deployment ID**: Tracking logs across different application deployments (logged in each entry)
 - **Correlating issues**: Link problems to specific workflows and releases
 - **Monitoring**: Track health and performance across workflows and deployments
 
@@ -153,6 +151,46 @@ The logger automatically captures:
 - Response status code, body, and headers (filtered for security)
 - Request duration
 - Trace ID and request ID for correlation
+
+### Full URL Logging for Webhook Endpoints
+
+When webhook endpoints receive incoming requests, the logger automatically constructs and logs the full URL using a smart fallback strategy:
+
+1. **Preferred: Uses `UNNBOUND_WORKFLOW_URL`** - If set, this becomes the base URL for all logged requests
+2. **Fallback: Constructs from request headers** - Uses protocol, host, and forwarded headers from the incoming request
+
+```bash
+# Set your workflow URL to ensure full URLs in logs
+export UNNBOUND_WORKFLOW_URL="https://api.yourservice.com"
+
+# Example webhook endpoints will be logged as:
+# POST https://api.yourservice.com/webhooks/stripe
+# POST https://api.yourservice.com/webhooks/github
+```
+
+```typescript
+import express from 'express';
+import { UnnboundLogger } from 'unnbound-logger';
+
+const app = express();
+const logger = new UnnboundLogger();
+
+// Apply trace middleware for automatic logging
+app.use(logger.traceMiddleware);
+
+// Webhook endpoints - URLs automatically logged with full domain
+app.post('/webhooks/stripe', (req, res) => {
+  // Request logged as: https://api.yourservice.com/webhooks/stripe
+  res.status(200).send('OK');
+});
+
+app.post('/webhooks/github', (req, res) => {
+  // Request logged as: https://api.yourservice.com/webhooks/github
+  res.status(200).send('OK');
+});
+```
+
+This ensures webhook logs contain the complete URL for easy debugging and monitoring.
 
 ## SFTP Transaction Logging
 
@@ -361,7 +399,7 @@ new UnnboundLogger(options?: LoggerOptions)
 - `ignoreTraceRoutes?: string[]` - Routes to ignore in Express middleware
 - `ignoreAxiosTraceRoutes?: string[]` - Routes to ignore in Axios middleware
 
-**Note:** `workflowId`, `workflowUrl`, `serviceId`, and `deploymentId` are configured via environment variables (`UNNBOUND_WORKFLOW_ID`, `UNNBOUND_WORKFLOW_URL`, `UNNBOUND_SERVICE_ID`, `UNNBOUND_DEPLOYMENT_ID`).
+**Note:** `workflowId`, `serviceId`, and `deploymentId` are configured via environment variables (`UNNBOUND_WORKFLOW_ID`, `UNNBOUND_SERVICE_ID`, `UNNBOUND_DEPLOYMENT_ID`). The `UNNBOUND_WORKFLOW_URL` is used for URL construction in webhook endpoints.
 
 #### Methods
 
