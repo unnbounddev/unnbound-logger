@@ -28,9 +28,10 @@ export interface Log<T extends LogType = 'general'> {
   level: LogLevel;
   type: T;
   message: string;
-  // serviceId: string; // To be added later
+  serviceId: string;
   deploymentId: string;
   workflowId: string;
+  workflowUrl: string;
   traceId: string;
   requestId: string;
   // spanId?: string; // To be added later

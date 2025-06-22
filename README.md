@@ -52,7 +52,9 @@ interface Log<T extends LogType = 'general'> {
   level: LogLevel; // "info" | "debug" | "error" | "warn"
   type: T; // "general" | "httpRequest" | "httpResponse" | "sftpTransaction" | "dbQueryTransaction"
   message: string;
-  workflowId: string; // Workflow tracking (empty string if not set)
+  workflowId: string;
+  workflowUrl: string;
+  serviceId: string;
   traceId: string;
   requestId: string;
   deploymentId: string; // Automatically populated from UNNBOUND_DEPLOYMENT_ID
@@ -73,15 +75,19 @@ The logger includes a `workflowId` field in all log entries for tracking operati
 ```bash
 # Set the workflow ID in your environment
 export UNNBOUND_WORKFLOW_ID="order-processing-12345"
+export UNNBOUND_WORKFLOW_URL="https://workflows.example.com/order-processing-12345"
+export UNNBOUND_SERVICE_ID="order-service"
 
 # Or in your deployment configuration  
 UNNBOUND_WORKFLOW_ID=order-processing-12345
+UNNBOUND_WORKFLOW_URL=https://workflows.example.com/order-processing-12345
+UNNBOUND_SERVICE_ID=order-service
 ```
 
 ```typescript
-// Create a logger - workflowId is automatically set from environment
+// Create a logger - workflowId, workflowUrl, and serviceId are automatically set from environment
 const logger = new UnnboundLogger();
-// All logs will include the workflowId from UNNBOUND_WORKFLOW_ID environment variable
+// All logs will include the workflowId, workflowUrl, and serviceId from their respective environment variables
 ```
 
 ### Deployment Tracking
@@ -99,6 +105,8 @@ UNNBOUND_DEPLOYMENT_ID=v1.2.3-prod-20231201
 If the environment variables are not set, the fields will be empty strings. These fields help with:
 
 - **Workflow ID**: Unique identifier for the workflow
+- **Workflow URL**: URL link to the workflow for easy navigation
+- **Service ID**: Identifier for the specific service/component
 - **Deployment ID**: Tracking logs across different application deployments
 - **Correlating issues**: Link problems to specific workflows and releases
 - **Monitoring**: Track health and performance across workflows and deployments
@@ -353,7 +361,7 @@ new UnnboundLogger(options?: LoggerOptions)
 - `ignoreTraceRoutes?: string[]` - Routes to ignore in Express middleware
 - `ignoreAxiosTraceRoutes?: string[]` - Routes to ignore in Axios middleware
 
-**Note:** `workflowId` and `deploymentId` are configured via environment variables (`UNNBOUND_WORKFLOW_ID`, `UNNBOUND_DEPLOYMENT_ID`).
+**Note:** `workflowId`, `workflowUrl`, `serviceId`, and `deploymentId` are configured via environment variables (`UNNBOUND_WORKFLOW_ID`, `UNNBOUND_WORKFLOW_URL`, `UNNBOUND_SERVICE_ID`, `UNNBOUND_DEPLOYMENT_ID`).
 
 #### Methods
 

@@ -37,6 +37,8 @@ declare module 'axios' {
 export class UnnboundLogger {
   private logger: pino.Logger;
   private workflowId: string;
+  private workflowUrl: string;
+  private serviceId: string;
   private deploymentId: string;
   private traceHeaderKey: string;
   private ignoreTraceRoutes: string[];
@@ -48,6 +50,8 @@ export class UnnboundLogger {
    */
   constructor(options: LoggerOptions = {}) {
     this.workflowId = process.env.UNNBOUND_WORKFLOW_ID || '';
+    this.workflowUrl = process.env.UNNBOUND_WORKFLOW_URL || '';
+    this.serviceId = process.env.UNNBOUND_SERVICE_ID || '';
     this.deploymentId = process.env.UNNBOUND_DEPLOYMENT_ID || '';
     this.traceHeaderKey = options.traceHeaderKey || 'unnbound-trace-id';
     this.ignoreTraceRoutes = options.ignoreTraceRoutes || [];
@@ -113,6 +117,8 @@ export class UnnboundLogger {
       logId,
       type: 'general' as const,
       workflowId: this.workflowId,
+      workflowUrl: this.workflowUrl,
+      serviceId: this.serviceId,
       traceId,
       requestId,
       deploymentId: this.deploymentId,
@@ -233,6 +239,8 @@ export class UnnboundLogger {
       req.res.locals.startTime = startTime;
       req.res.locals.traceId = traceId;
       req.res.locals.workflowId = this.workflowId;
+      req.res.locals.workflowUrl = this.workflowUrl;
+      req.res.locals.serviceId = this.serviceId;
     }
 
     const logEntry: Omit<HttpRequestLog, 'level'> & { [key: string]: any } = {
@@ -240,6 +248,8 @@ export class UnnboundLogger {
       type: 'httpRequest',
       message: req.ip === 'outgoing' ? 'Outgoing HTTP Request' : 'Incoming HTTP Request',
       workflowId: this.workflowId,
+      workflowUrl: this.workflowUrl,
+      serviceId: this.serviceId,
       traceId,
       requestId,
       deploymentId: this.deploymentId,
@@ -253,8 +263,10 @@ export class UnnboundLogger {
       },
     };
 
-    const result = this.log(options.level || 'info', logEntry);
-    return result as unknown as HttpRequestLog;
+    const { message: logMessage, ...logData } = logEntry;
+    this.logger[options.level || 'info'](logData, logMessage);
+    
+    return logEntry as unknown as HttpRequestLog;
   }
 
   /**
@@ -268,6 +280,8 @@ export class UnnboundLogger {
     const requestId = res.locals.requestId || options.requestId || uuidv4();
     const startTime = res.locals.startTime || options.startTime || Date.now();
     const workflowId = res.locals.workflowId || this.workflowId;
+    const workflowUrl = res.locals.workflowUrl || this.workflowUrl;
+    const serviceId = res.locals.serviceId || this.serviceId;
     const traceId = res.locals.traceId || options.traceId || traceContext.getTraceId() || uuidv4();
     const duration = options.duration || (Date.now() - startTime);
 
@@ -286,6 +300,8 @@ export class UnnboundLogger {
       type: 'httpResponse',
       message: getStatusMessage(res.statusCode),
       workflowId: workflowId || '',
+      workflowUrl: workflowUrl || '',
+      serviceId: serviceId || '',
       traceId,
       requestId,
       deploymentId: this.deploymentId,
@@ -300,8 +316,10 @@ export class UnnboundLogger {
       },
     };
 
-    const result = this.log(level, logEntry);
-    return result as unknown as HttpResponseLog;
+    const { message: logMessage, ...logData } = logEntry;
+    this.logger[level](logData, logMessage);
+    
+    return logEntry as unknown as HttpResponseLog;
   }
 
   /**
@@ -334,6 +352,8 @@ export class UnnboundLogger {
       type: 'sftpTransaction',
       message: `SFTP ${operation.operation} ${operation.status} - ${operation.path}`,
       workflowId: this.workflowId,
+      workflowUrl: this.workflowUrl,
+      serviceId: this.serviceId,
       traceId,
       requestId,
       deploymentId: this.deploymentId,
@@ -341,8 +361,10 @@ export class UnnboundLogger {
       sftp: operation,
     };
 
-    const result = this.log(level, logEntry);
-    return result as unknown as SftpTransactionLog;
+    const { message: logMessage, ...logData } = logEntry;
+    this.logger[level](logData, logMessage);
+    
+    return logEntry as unknown as SftpTransactionLog;
   }
 
   /**
@@ -373,6 +395,8 @@ export class UnnboundLogger {
       type: 'dbQueryTransaction',
       message: `DB Query ${query.status} - ${query.vendor}`,
       workflowId: this.workflowId,
+      workflowUrl: this.workflowUrl,
+      serviceId: this.serviceId,
       traceId,
       requestId,
       deploymentId: this.deploymentId,
@@ -380,8 +404,10 @@ export class UnnboundLogger {
       db: query,
     };
 
-    const result = this.log(level, logEntry);
-    return result as unknown as DbQueryTransactionLog;
+    const { message: logMessage, ...logData } = logEntry;
+    this.logger[level](logData, logMessage);
+    
+    return logEntry as unknown as DbQueryTransactionLog;
   }
 
   // Trace middleware
