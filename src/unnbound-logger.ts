@@ -482,6 +482,12 @@ export class UnnboundLogger {
   // Axios response interceptor (should be used separately)
   public axiosResponseInterceptor = {
     onFulfilled: (response: any): any => {
+      // Check if the URL should be ignored
+      const url = `${response.config?.baseURL || ''}${response.config?.url}`;
+      if (url && this.shouldIgnorePath(url, this.ignoreAxiosTraceRoutes)) {
+        return response;
+      }
+
       // Calculate duration
       const startTime = response.config.metadata?.startTime || Date.now();
       const requestId = response.config.metadata?.requestId;
@@ -518,6 +524,12 @@ export class UnnboundLogger {
       return response;
     },
     onRejected: (error: any): any => {
+      // Check if the URL should be ignored
+      const url = `${error.config?.baseURL || ''}${error.config?.url}`;
+      if (url && this.shouldIgnorePath(url, this.ignoreAxiosTraceRoutes)) {
+        return Promise.reject(error);
+      }
+
       // Calculate duration for error responses
       const startTime = error.config?.metadata?.startTime || Date.now();
       const requestId = error.config?.metadata?.requestId;
