@@ -22,24 +22,27 @@ logger.warn('Resource usage high');
 logger.error(new Error('Database connection failed'));
 logger.debug('Debug information');
 
-// Log with object messages
+// Log with object messages (wrapped in 'data' field)
 logger.info({
   event: 'user_login',
   userId: '123',
   timestamp: new Date().toISOString()
 });
+// Results in: { "data": { "event": "user_login", "userId": "123", "timestamp": "..." }, "message": "Structured log data", ... }
 
-// Log with both string message and metadata
+// Log with both string message and metadata (metadata added to top level)
 logger.info('User logged in', {
   userId: '123',
   timestamp: new Date().toISOString()
 });
+// Results in: { "userId": "123", "timestamp": "...", "message": "User logged in", ... }
 
 // Log with object message and additional metadata
 logger.info(
   { event: 'user_login', userId: '123' },
   { timestamp: new Date().toISOString() }
 );
+// Results in: { "data": { "event": "user_login", "userId": "123" }, "timestamp": "...", "message": "Structured log data", ... }
 ```
 
 ## Log Format
@@ -108,6 +111,43 @@ If the environment variables are not set, the fields will be empty strings. Thes
 - **Deployment ID**: Tracking logs across different application deployments (logged in each entry)
 - **Correlating issues**: Link problems to specific workflows and releases
 - **Monitoring**: Track health and performance across workflows and deployments
+
+## Object Logging Behavior
+
+The logger handles different message types differently to ensure consistent structure in your logs:
+
+### String Messages with Metadata
+When you pass a string message with additional metadata, the metadata is wrapped in a `data` field:
+
+```typescript
+logger.info('User action completed', { userId: '123', action: 'login' });
+// Result: { "message": "User action completed", "data": { "userId": "123", "action": "login" }, ... }
+```
+
+### Object Messages
+When you pass an object as the message, it gets wrapped in a `data` field to prevent unknown properties from polluting the top level:
+
+```typescript
+logger.info({ userId: '123', action: 'login', timestamp: '2025-01-01T12:00:00Z' });
+// Result: { "message": "Structured log data", "data": { "userId": "123", "action": "login", "timestamp": "2025-01-01T12:00:00Z" }, ... }
+```
+
+If the object contains a `message` property, it remains in the `data` object and doesn't affect the top-level message:
+
+```typescript
+logger.info({ message: 'Custom message', userId: '123' });
+// Result: { "message": "Structured log data", "data": { "message": "Custom message", "userId": "123" }, ... }
+```
+
+### Error Objects
+Error objects are handled specially and include serialized error information:
+
+```typescript
+logger.error(new Error('Something went wrong'));
+// Result: { "message": "Error", "error": { "name": "Error", "message": "Something went wrong", "stack": "..." }, ... }
+```
+
+This structure ensures your UI can reliably access all object data through the `data` field without worrying about unknown properties at the top level. Whether you pass an object as the message or as metadata, it will always be contained within the `data` field.
 
 ## HTTP Request/Response Logging
 

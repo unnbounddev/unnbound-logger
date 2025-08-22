@@ -105,6 +105,75 @@ describe('UnnboundLogger', () => {
     expect(logCall[1]).toBe('Test message');
   });
 
+  test('should log object messages with data wrapper', () => {
+    const testObject = {
+      userId: '123',
+      action: 'login',
+      timestamp: '2025-01-01T12:00:00.000Z'
+    };
+
+    logger.info(testObject);
+
+    expect(logSpy).toHaveBeenCalled();
+    const logCall = logSpy.mock.calls[0];
+    expect(logCall[0]).toMatchObject({
+      logId: 'test-uuid',
+      type: 'general',
+      workflowId: '',
+      traceId: 'test-uuid',
+      requestId: 'test-uuid',
+      deploymentId: '',
+      data: testObject,
+    });
+    expect(logCall[1]).toBe('Structured log data');
+  });
+
+  test('should log object messages with message property in data', () => {
+    const testObject = {
+      message: 'User performed action',
+      userId: '123',
+      action: 'login'
+    };
+
+    logger.info(testObject);
+
+    expect(logSpy).toHaveBeenCalled();
+    const logCall = logSpy.mock.calls[0];
+    expect(logCall[0]).toMatchObject({
+      logId: 'test-uuid',
+      type: 'general',
+      workflowId: '',
+      traceId: 'test-uuid',
+      requestId: 'test-uuid',
+      deploymentId: '',
+      data: testObject,
+    });
+    expect(logCall[1]).toBe('Structured log data');
+  });
+
+  test('should wrap string message options in data field', () => {
+    logger.info('User login event', {
+      userId: '123',
+      timestamp: '2025-01-01T12:00:00.000Z'
+    });
+
+    expect(logSpy).toHaveBeenCalled();
+    const logCall = logSpy.mock.calls[0];
+    expect(logCall[0]).toMatchObject({
+      logId: 'test-uuid',
+      type: 'general',
+      workflowId: '',
+      traceId: 'test-uuid',
+      requestId: 'test-uuid',
+      deploymentId: '',
+      data: {
+        userId: '123',
+        timestamp: '2025-01-01T12:00:00.000Z',
+      },
+    });
+    expect(logCall[1]).toBe('User login event');
+  });
+
   test('should log errors', () => {
     const errorSpy = jest.spyOn(logger['logger'], 'error');
     const error = new Error('Test error');

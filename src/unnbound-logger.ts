@@ -113,6 +113,9 @@ export class UnnboundLogger {
       ...restOptions
     } = options;
 
+    // If restOptions has any properties, we'll add them to data later
+    const hasRestOptions = Object.keys(restOptions).length > 0;
+
     const baseEntry = {
       logId,
       type: 'general' as const,
@@ -133,21 +136,21 @@ export class UnnboundLogger {
         ...baseEntry,
         message: message.name,
         error,
-        ...restOptions,
+        ...(hasRestOptions && { data: restOptions }),
       };
     } else if (typeof message === 'string') {
       logEntry = {
         ...baseEntry,
         message,
-        ...restOptions,
+        ...(hasRestOptions && { data: restOptions }),
       };
     } else {
-      // If message is an object, it's part of the log entry
+      // If message is an object, wrap it in a 'data' key
+      const messageObj = message as Record<string, unknown>;
       logEntry = {
         ...baseEntry,
-        ...(message as Record<string, unknown>),
-        message: (message as { message?: string }).message || 'Structured log data',
-        ...restOptions,
+        message: 'Structured log data',
+        data: hasRestOptions ? { ...messageObj, ...restOptions } : messageObj,
       };
     }
 
